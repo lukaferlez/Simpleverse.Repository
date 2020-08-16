@@ -1,2 +1,2 @@
 # Simpleverse.Dapper
-![.NET Core](https://github.com/lukaferlez/Simpleverse.Dapper/workflows/.NET%20Core/badge.svg)
+![build](https://github.com/lukaferlez/Simpleverse.Dapper/workflows/build/badge.svg)
