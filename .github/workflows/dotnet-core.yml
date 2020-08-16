@@ -15,6 +15,14 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.301
+    - name: PowerShell script
+      uses: Amadevus/pwsh-script@v1.0.0
+      id: script
+      with:
+        script: |
+          Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+          Write-Host "Checking"
+          sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
     - name: Install dependencies
       run: dotnet restore
     - name: Build
