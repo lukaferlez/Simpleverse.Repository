@@ -3,6 +3,8 @@ name: build
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [master]
 
 jobs:
   build:
@@ -33,8 +35,3 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
-    - name: Publish NuGet
-      uses: brandedoutcast/publish-nuget@v2.5.5
-      with:
-          PROJECT_FILE_PATH: Simpleverse.Dapper/Simpleverse.Dapper.csproj
-          NUGET_KEY: ${{secrets.nuget_api_key}}
