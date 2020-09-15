@@ -44,12 +44,12 @@ namespace Simpleverse.Dapper
 
 	public static class PropertyEnumerableExtensions
 	{
-		public static string ColumnList(this IEnumerable<PropertyInfo> properties, string prefix = null)
+		public static string ColumnList(this IEnumerable<PropertyInfo> properties, string prefix = null, string suffix = null)
 		{
 			if (!string.IsNullOrEmpty(prefix))
 				prefix = prefix + ".";
 
-			return string.Join(", ", properties.Select(x => prefix + x.Name));
+			return string.Join(", ", properties.Select(x => prefix + x.Name + suffix));
 		}
 
 		public static string ColumnListEquals(this IEnumerable<PropertyInfo> properties, string separator, string leftPrefix = "Target", string rightPrefix = "Source")
@@ -63,9 +63,14 @@ namespace Simpleverse.Dapper
 			return string.Join(separator, properties.Select(x => $"{leftPrefix}{x.Name} = {rightPrefix}{x.Name}"));
 		}
 
-		public static string ParameterList(this IEnumerable<PropertyInfo> properties)
+		public static string ParameterList(this IEnumerable<PropertyInfo> properties, string suffix = null)
 		{
-			return string.Join(", ", properties.Select(x => $"@{x.Name}"));
+			return string.Join(", ", properties.Select(x => x.ParameterName(suffix: suffix)));
+		}
+
+		public static string ParameterName(this PropertyInfo property, string suffix = null)
+		{
+			return $"@{property.Name}{suffix}";
 		}
 
 		public static string ColumnListDifferenceCheck(this IEnumerable<PropertyInfo> properties, string separator = " OR ", string leftPrefix = "Target", string rightPrefix = "Source")

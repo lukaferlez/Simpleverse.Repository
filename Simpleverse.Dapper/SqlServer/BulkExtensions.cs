@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
 using Dapper.Contrib.Extensions;
+using System.Text;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -53,11 +54,42 @@ namespace Simpleverse.Dapper.SqlServer
 				, transaction
 			);
 
-			using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.Default, transaction))
+			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000)
 			{
-				sqlBulkCopy?.Invoke(bulkCopy);
-				bulkCopy.DestinationTableName = insertedTableName;
-				await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader());
+				var parameters = new DynamicParameters();
+
+				var query = new StringBuilder($"INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()}) VALUES");
+
+				int index = 0;
+				foreach(var entity in entitiesToInsert)
+				{
+					var parameterList = columnsToCopy.ParameterList($"_{index}");
+					if (index > 0)
+						query.AppendLine(",");
+					query.Append($"({parameterList})");
+
+					foreach(var column in columnsToCopy)
+					{
+						parameters.Add(column.ParameterName($"_{index}"), column.GetValue(entity));
+					}
+
+					index++;
+				}
+
+				await connection.ExecuteAsync(
+					query.ToString(),
+					parameters,
+					transaction: transaction
+				);
+			}
+			else
+			{
+				using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.Default, transaction))
+				{
+					sqlBulkCopy?.Invoke(bulkCopy);
+					bulkCopy.DestinationTableName = insertedTableName;
+					await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader());
+				}
 			}
 
 			return insertedTableName;
