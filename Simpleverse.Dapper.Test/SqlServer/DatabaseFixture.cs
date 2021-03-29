@@ -15,25 +15,15 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		public void Dispose()
 		{
-			using (var connection = new SqlConnection(ConnectionString))
-			{
-				connection.Open();
-				connection.Execute($@"{DropTable("[Identity]")}");
-				connection.Execute($@"{DropTable("[ExplicitKey]")}");
-				connection.Execute($@"{DropTable("[IdentityAndExplict]")}");
-				connection.Execute($@"{DropTable("[Computed]")}");
-				connection.Execute($@"{DropTable("[Write]")}");
-				connection.Execute($@"{DropTable("[DataType]")}");
-				connection.Execute($@"{DropTable("[10_Escape]")}");
-
-				var schemaName = "test";
-
-				connection.Execute($@"{DropTable($@"{schemaName}.[10_Escape]")}");
-				connection.Execute($@"{DropSchema(schemaName)}");
-			}
+			TearDownDb();
 		}
 
 		public DatabaseFixture()
+		{
+			SetupDb();
+		}
+
+		public void SetupDb()
 		{
 			using (var connection = new SqlConnection(ConnectionString))
 			{
@@ -115,6 +105,26 @@ namespace Simpleverse.Dapper.Test.SqlServer
 					$@"CREATE TABLE [{schemaName}].[10_Escape](
 						[NoId] INT NOT NULL
 					);");
+			}
+		}
+
+		public void TearDownDb()
+		{
+			using (var connection = new SqlConnection(ConnectionString))
+			{
+				connection.Open();
+				connection.Execute($@"{DropTable("[Identity]")}");
+				connection.Execute($@"{DropTable("[ExplicitKey]")}");
+				connection.Execute($@"{DropTable("[IdentityAndExplict]")}");
+				connection.Execute($@"{DropTable("[Computed]")}");
+				connection.Execute($@"{DropTable("[Write]")}");
+				connection.Execute($@"{DropTable("[DataType]")}");
+				connection.Execute($@"{DropTable("[10_Escape]")}");
+
+				var schemaName = "test";
+
+				connection.Execute($@"{DropTable($@"{schemaName}.[10_Escape]")}");
+				connection.Execute($@"{DropSchema(schemaName)}");
 			}
 		}
 	}

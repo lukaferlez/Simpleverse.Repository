@@ -25,7 +25,7 @@ namespace Simpleverse.Dapper.SqlServer
 			return await connection.TransferBulkAsync(
 				entitiesToInsert,
 				meta.TableName,
-				meta.PropertiesExceptKeyAndComputed,
+				meta.Properties,
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
 			);
@@ -43,7 +43,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (!columnsToCopy.Any())
 				return string.Empty;
 
-			var insertedTableName = $"#Tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+			var insertedTableName = $"tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
 
 			connection.Execute(
 				$@"SELECT TOP 0 {columnsToCopy.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
@@ -248,7 +248,7 @@ namespace Simpleverse.Dapper.SqlServer
 		/// <param name="transaction">The transaction to run under, null (the default) if none</param>
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
-		public async static Task<bool> UpdateBulkAsync<T>(
+		public async static Task<int> UpdateBulkAsync<T>(
 			this SqlConnection connection,
 			IEnumerable<T> entitiesToUpdate,
 			SqlTransaction transaction = null,
@@ -256,9 +256,9 @@ namespace Simpleverse.Dapper.SqlServer
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		) where T : class
 		{
-			entitiesToUpdate = entitiesToUpdate.Where(x => x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty);
+			entitiesToUpdate = entitiesToUpdate.Where(x => (x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty) || !(x is SqlMapperExtensions.IProxy));
 			if (!entitiesToUpdate.Any())
-				return false;
+				return 0;
 
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
@@ -283,7 +283,7 @@ namespace Simpleverse.Dapper.SqlServer
 
 			if (wasClosed) connection.Close();
 
-			return updated > 0;
+			return updated;
 		}
 
 		/// <summary>

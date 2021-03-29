@@ -121,7 +121,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public object[] IdentityAndExplictTest(int count) =>
+		public static object[] IdentityAndExplictTest(int count) =>
 			Generate(
 				nameof(IdentityAndExplictTest),
 				TestData.IdentityAndExplictData,
@@ -132,7 +132,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public object[] ComputedTest(int count) =>
+		public static object[] ComputedTest(int count) =>
 			Generate(
 				nameof(ComputedTest),
 				TestData.ComputedData,
@@ -143,7 +143,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public object[] WriteTest(int count) =>
+		public static object[] WriteTest(int count) =>
 			Generate(
 				nameof(WriteTest),
 				TestData.WriteData,
@@ -155,7 +155,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public object[] DataTypeTest(int count) =>
+		public static object[] DataTypeTest(int count) =>
 			Generate(
 				nameof(DataTypeTest),
 				TestData.DataTypeData,
@@ -168,7 +168,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public object[] DataTypeNullableTest(int count) =>
+		public static object[] DataTypeNullableTest(int count) =>
 			Generate(
 				nameof(DataTypeNullableTest),
 				TestData.DataTypeNullableData,
