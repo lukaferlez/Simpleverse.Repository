@@ -43,7 +43,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (!columnsToCopy.Any())
 				return string.Empty;
 
-			var insertedTableName = $"tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
 
 			connection.Execute(
 				$@"SELECT TOP 0 {columnsToCopy.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
@@ -194,7 +194,7 @@ namespace Simpleverse.Dapper.SqlServer
 						ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
 			";
 
-				var enities = await connection.QueryAsync<T>(query, commandTimeout: commandTimeout, transaction: transaction);
+			var enities = await connection.QueryAsync<T>(query, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
