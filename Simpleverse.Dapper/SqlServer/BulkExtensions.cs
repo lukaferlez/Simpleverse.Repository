@@ -218,6 +218,13 @@ namespace Simpleverse.Dapper.SqlServer
 			Action<SqlBulkCopy> sqlBulkCopy = null
 			) where T : class
 		{
+			var entityCount = entitiesToInsert.Count();
+			if (entityCount == 0)
+				return 0;
+
+			if (entityCount == 1)
+				return await connection.InsertAsync(entitiesToInsert, transaction: transaction, commandTimeout: commandTimeout);
+
 			var meta = TypeMeta.Get<T>();
 
 			var wasClosed = connection.State == ConnectionState.Closed;
@@ -257,8 +264,13 @@ namespace Simpleverse.Dapper.SqlServer
 		) where T : class
 		{
 			entitiesToUpdate = entitiesToUpdate.Where(x => (x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty) || !(x is SqlMapperExtensions.IProxy));
-			if (!entitiesToUpdate.Any())
+
+			var entityCount = entitiesToUpdate.Count();
+			if (entityCount == 0)
 				return 0;
+
+			if (entityCount == 1)
+				return await connection.UpdateAsync(entitiesToUpdate.First(), transaction: transaction, commandTimeout: commandTimeout) ? 1 : 0;
 
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
@@ -303,6 +315,13 @@ namespace Simpleverse.Dapper.SqlServer
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		) where T : class
 		{
+			var entityCount = entitiesToDelete.Count();
+			if (entityCount == 0)
+				return 0;
+
+			if (entityCount == 1)
+				return await connection.DeleteAsync(entitiesToDelete.First(), transaction: transaction, commandTimeout: commandTimeout) ? 1 : 0;
+
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
