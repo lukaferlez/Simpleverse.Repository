@@ -163,7 +163,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			return merged;
 		}
 
-		private static void Format(this MergeMatchResult result, TypeMeta typeMeta, Action<MergeActionOptions> optionsAction, StringBuilder sb)
+		public static void Format(this MergeMatchResult result, TypeMeta typeMeta, Action<MergeActionOptions> optionsAction, StringBuilder sb)
 		{
 			if (optionsAction == null)
 				return;
@@ -196,7 +196,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			MergeActionFormat(options, sb);
 		}
 
-		private static void MergeActionFormat(MergeActionOptions options, StringBuilder sb)
+		public static void MergeActionFormat(MergeActionOptions options, StringBuilder sb)
 		{
 			switch (options.Action)
 			{
