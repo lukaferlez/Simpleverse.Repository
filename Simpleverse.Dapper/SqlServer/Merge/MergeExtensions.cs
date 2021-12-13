@@ -58,7 +58,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				USING
 				(
 					VALUES({typeMeta.PropertiesExceptKeyAndComputed.ParameterList()})
-				)
+				) AS Source({typeMeta.PropertiesExceptKeyAndComputed.ColumnList()})
 				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
 			);
 

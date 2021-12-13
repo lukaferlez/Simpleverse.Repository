@@ -31,6 +31,17 @@ namespace Simpleverse.Dapper.SqlServer
 			);
 		}
 
+		/// <summary>
+		/// Transfers recrods in bulk opration to sql server. Make sure you open a connection external otherwise you will lose the data you have transfered.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="connection"></param>
+		/// <param name="entitiesToInsert"></param>
+		/// <param name="tableName"></param>
+		/// <param name="columnsToCopy"></param>
+		/// <param name="transaction"></param>
+		/// <param name="sqlBulkCopy"></param>
+		/// <returns></returns>
 		public static async Task<string> TransferBulkAsync<T>(
 			this SqlConnection connection,
 			IEnumerable<T> entitiesToInsert,
@@ -44,6 +55,9 @@ namespace Simpleverse.Dapper.SqlServer
 				return string.Empty;
 
 			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+
+			if (connection.State != ConnectionState.Open)
+				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
 			connection.Execute(
 				$@"SELECT TOP 0 {columnsToCopy.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
