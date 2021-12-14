@@ -57,8 +57,8 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				MERGE INTO {typeMeta.TableName} AS Target
 				USING
 				(
-					VALUES({typeMeta.PropertiesExceptKeyAndComputed.ParameterList()})
-				) AS Source({typeMeta.PropertiesExceptKeyAndComputed.ColumnList()})
+					VALUES({typeMeta.Properties.ParameterList()})
+				) AS Source({typeMeta.Properties.ColumnList()})
 				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
 			);
 

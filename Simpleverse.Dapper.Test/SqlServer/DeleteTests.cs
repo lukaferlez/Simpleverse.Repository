@@ -22,7 +22,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			{
 				// arange
 				connection.Open();
-				connection.DeleteAll<ExplicitKey>();
+				connection.Truncate<ExplicitKey>();
 				var records = TestData.ExplicitKeyData(10);
 				var inserted = connection.Insert(records);
 				records = records.Skip(2).Take(5);
