@@ -4,6 +4,8 @@ using System.Text;
 using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
+using System.Linq;
+using System.Reflection;
 
 namespace Simpleverse.Dapper.SqlServer.Merge
 {
@@ -46,6 +48,9 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 		)
 			where T : class
 		{
+			if (entitiesToMerge == null)
+				throw new ArgumentNullException(nameof(entitiesToMerge));
+
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
@@ -57,8 +62,8 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				MERGE INTO {typeMeta.TableName} AS Target
 				USING
 				(
-					VALUES({typeMeta.Properties.ParameterList()})
-				) AS Source({typeMeta.Properties.ColumnList()})
+					VALUES({typeMeta.PropertiesExceptComputed.ParameterList()})
+				) AS Source({typeMeta.PropertiesExceptComputed.ColumnList()})
 				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
 			);
 
@@ -130,6 +135,16 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			Action<MergeActionOptions> notMatchedBySource = null
 		) where T : class
 		{
+			if (entitiesToMerge == null)
+				throw new ArgumentNullException(nameof(entitiesToMerge));
+
+			var entityCount = entitiesToMerge.Count();
+			if (entityCount == 0)
+				return 0;
+
+			if (entityCount == 1)
+				return await connection.MergeAsync(entitiesToMerge.FirstOrDefault(), transaction: transaction, commandTimeout: commandTimeout);
+
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
@@ -176,10 +191,16 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			if (options.Columns == null)
 				options.Columns = typeMeta.PropertiesExceptKeyAndComputed;
 
+			if (options.Key == null)
+				options.Key = typeMeta.PropertiesKey;
+
+			if (options.Computed == null)
+				options.Computed = typeMeta.PropertiesComputed;
+
 			switch (result)
 			{
 				case MergeMatchResult.Matched:
-					sb.Append("WHEN MATCHED");
+					sb.AppendLine("WHEN MATCHED");
 					break;
 				case MergeMatchResult.NotMatchedBySource:
 					sb.AppendLine("WHEN NOT MATCHED BY SOURCE");
@@ -205,14 +226,25 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 					sb.AppendLine();
 					sb.AppendFormat("VALUES({0})", options.Columns.ColumnList("Source"));
 					sb.AppendLine();
+					MergeOutputFormat(options.Key.Union(options.Computed).ToList(), sb);
 					break;
 				case MergeAction.Update:
 					sb.AppendLine("UPDATE SET");
 					sb.AppendLine(options.Columns.ColumnListEquals(", ", leftPrefix: string.Empty));
+					MergeOutputFormat(options.Computed, sb);
 					break;
 				case MergeAction.Delete:
 					sb.AppendLine("DELETE");
 					break;
+			}
+		}
+
+		private static void MergeOutputFormat(IEnumerable<PropertyInfo> properties, StringBuilder sb)
+		{
+			if (properties.Any())
+			{
+				sb.AppendFormat("OUTPUT {0}", properties.ColumnList("Inserted"));
+				sb.AppendLine();
 			}
 		}
 	}

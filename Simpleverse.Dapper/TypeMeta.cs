@@ -18,6 +18,7 @@ namespace Simpleverse.Dapper
 		public IList<PropertyInfo> PropertiesExceptKeyAndComputed { get; }
 		public IList<PropertyInfo> PropertiesExceptKeyComputedAndExplicit { get; }
 		public IList<PropertyInfo> PropertiesKeyAndExplicit { get; }
+		public IList<PropertyInfo> PropertiesExceptComputed { get; }
 
 		public TypeMeta(Type type)
 		{
@@ -26,7 +27,8 @@ namespace Simpleverse.Dapper
 			PropertiesKey = SqlMapperWrapper.KeyPropertiesCache(type);
 			PropertiesComputed = SqlMapperWrapper.ComputedPropertiesCache(type);
 			PropertiesExplicit = SqlMapperWrapper.ExplicitKeyPropertiesCache(type);
-			PropertiesExceptKeyAndComputed = Properties.Except(PropertiesKey.Union(PropertiesComputed)).ToList();
+			PropertiesExceptComputed = Properties.Except(PropertiesComputed).ToList();
+			PropertiesExceptKeyAndComputed = PropertiesExceptComputed.Except(PropertiesKey).ToList();
 			PropertiesExceptKeyComputedAndExplicit = PropertiesExceptKeyAndComputed.Except(PropertiesExplicit).ToList();
 			PropertiesKeyAndExplicit = PropertiesExplicit.Union(PropertiesKey).ToList();
 		}

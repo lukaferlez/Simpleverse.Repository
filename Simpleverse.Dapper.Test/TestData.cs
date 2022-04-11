@@ -52,8 +52,8 @@ namespace Simpleverse.Dapper.Test
 				x => new Write() {
 					Id = x,
 					Name = x.ToString(),
-					Ignored = 5,
-					NotIgnored = 10
+					Ignored = 50,
+					NotIgnored = 100
 				},
 				count
 			);

@@ -35,9 +35,9 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 				// assert
 				var updatedRecords = connection.GetAll<ExplicitKey>();
 				Assert.Equal(1, updated);
-				Assert.Equal("3", updatedRecords.First(x => x.Id == 1).Name);
 				var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
 				Assert.NotNull(updatedRecord);
+				Assert.Equal("3", updatedRecord.Name);
 				Assert.Equal(record.Name, updatedRecord.Name);
 			}
 		}
@@ -61,10 +61,38 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 				// assert
 				var updatedRecords = connection.GetAll<Identity>();
 				Assert.Equal(1, updated);
-				Assert.Equal("3", updatedRecords.First(x => x.Id == 1).Name);
 				var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
 				Assert.NotNull(updatedRecord);
+				Assert.Equal("3", updatedRecord.Name);
 				Assert.Equal(record.Name, updatedRecord.Name);
+			}
+		}
+
+		[Fact]
+		public void UpsertAsyncWriteAttributeTest()
+		{
+			using (var connection = fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Write>();
+				var record = TestData.WriteData(1).FirstOrDefault();
+				var inserted = connection.Insert(record);
+
+				record.Ignored = record.Id + 2;
+				record.NotIgnored = record.Id + 2;
+
+				// act
+				var updated = connection.UpsertAsync(record).Result;
+
+				// assert
+				var updatedRecords = connection.GetAll<Write>();
+				Assert.Equal(1, updated);
+				var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
+				Assert.NotNull(updatedRecord);
+				Assert.Null(updatedRecord.Ignored);
+				Assert.Equal(3, updatedRecord.NotIgnored);
+				Assert.Equal(record.NotIgnored, updatedRecord.NotIgnored);
 			}
 		}
 
@@ -130,6 +158,42 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 					var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
 					Assert.NotNull(updatedRecord);
 					Assert.Equal(record.Name, updatedRecord.Name);
+				}
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncWriteAttributeTest()
+		{
+			using (var connection = fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Write>();
+				var records = TestData.WriteData(10);
+				var inserted = connection.Insert(records);
+				records = records.Skip(1);
+				foreach (var record in records)
+				{
+					record.Ignored = (record.Id + 2);
+					record.NotIgnored = (record.Id + 3);
+				}
+
+				// act
+				var updated = connection.UpsertBulkAsync(records).Result;
+
+				// assert
+				var updatedRecords = connection.GetAll<Write>();
+				Assert.Equal(9, updated);
+				Assert.Null(updatedRecords.First(x => x.Id == 1).Ignored);
+				Assert.Equal(100, updatedRecords.First(x => x.Id == 1).NotIgnored);
+				for (int i = 0; i < records.Count(); i++)
+				{
+					var record = records.ElementAt(i);
+					var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
+					Assert.NotNull(updatedRecord);
+					Assert.Null(updatedRecord.Ignored);
+					Assert.Equal(record.NotIgnored, updatedRecord.NotIgnored);
 				}
 			}
 		}

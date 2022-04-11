@@ -8,5 +8,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 		public string Condition { get; set; }
 		public MergeAction Action { get; set; }
 		public IEnumerable<PropertyInfo> Columns { get; set; }
+		public IEnumerable<PropertyInfo> Key { get; set; }
+		public IEnumerable<PropertyInfo> Computed { get; set; }
 	}
 }
