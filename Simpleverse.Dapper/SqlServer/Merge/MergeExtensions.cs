@@ -67,9 +67,12 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
 			);
 
+			sb.AppendLine();
+
 			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
+			MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
 			sb.Append(";");
 
 			var merged = await connection.ExecuteAsync(sb.ToString(), entitiesToMerge, commandTimeout: commandTimeout, transaction: transaction);
@@ -166,9 +169,12 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
 			);
 
+			sb.AppendLine();
+
 			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
+			MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
 			sb.Append(";");
 
 			var merged = await connection.ExecuteAsync(sb.ToString(), commandTimeout: commandTimeout, transaction: transaction);
@@ -226,12 +232,10 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 					sb.AppendLine();
 					sb.AppendFormat("VALUES({0})", options.Columns.ColumnList("Source"));
 					sb.AppendLine();
-					MergeOutputFormat(options.Key.Union(options.Computed).ToList(), sb);
 					break;
 				case MergeAction.Update:
 					sb.AppendLine("UPDATE SET");
 					sb.AppendLine(options.Columns.ColumnListEquals(", ", leftPrefix: string.Empty));
-					MergeOutputFormat(options.Computed, sb);
 					break;
 				case MergeAction.Delete:
 					sb.AppendLine("DELETE");
