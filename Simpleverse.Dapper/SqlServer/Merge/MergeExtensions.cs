@@ -72,7 +72,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
-			MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
+			// MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
 			sb.Append(";");
 
 			var merged = await connection.ExecuteAsync(sb.ToString(), entitiesToMerge, commandTimeout: commandTimeout, transaction: transaction);
