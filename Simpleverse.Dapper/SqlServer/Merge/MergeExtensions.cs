@@ -146,7 +146,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				return 0;
 
 			if (entityCount == 1)
-				return await connection.MergeAsync(entitiesToMerge.FirstOrDefault(), transaction: transaction, commandTimeout: commandTimeout);
+				return await connection.UpsertAsync(entitiesToMerge.FirstOrDefault(), transaction: transaction, commandTimeout: commandTimeout);
 
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
