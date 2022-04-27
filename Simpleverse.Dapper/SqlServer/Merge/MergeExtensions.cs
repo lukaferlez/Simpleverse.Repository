@@ -15,25 +15,16 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			this SqlConnection connection,
 			T entitiesToUpsert,
 			SqlTransaction transaction = null,
-			int? commandTimeout = null
+			int? commandTimeout = null,
+			Action<MergeKeyOptions> key = null
 		)
 			where T : class
 		{
-			var typeMeta = TypeMeta.Get<T>();
-
-			return await connection.MergeAsync<T>(
-				entitiesToUpsert,
-				transaction,
-				commandTimeout,
-				matched =>
-				{
-					matched.Action = MergeAction.Update;
-					matched.Condition = typeMeta.PropertiesExceptKeyAndComputed.ColumnListDifferenceCheck();
-				},
-				notMatchedByTarget =>
-				{
-					notMatchedByTarget.Action = MergeAction.Insert;
-				}
+			return await connection.UpsertAsync(
+				new[] { entitiesToUpsert },
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				key: key
 			);
 		}
 
@@ -42,44 +33,22 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			T entitiesToMerge,
 			SqlTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<MergeActionOptions> matched = null,
-			Action<MergeActionOptions> notMatchedByTarget = null,
-			Action<MergeActionOptions> notMatchedBySource = null
+			Action<MergeKeyOptions> key = null,
+			Action<MergeActionOptions<T>> matched = null,
+			Action<MergeActionOptions<T>> notMatchedByTarget = null,
+			Action<MergeActionOptions<T>> notMatchedBySource = null
 		)
 			where T : class
 		{
-			if (entitiesToMerge == null)
-				throw new ArgumentNullException(nameof(entitiesToMerge));
-
-			var typeMeta = TypeMeta.Get<T>();
-			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
-				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
-
-			var wasClosed = connection.State == System.Data.ConnectionState.Closed;
-			if (wasClosed) connection.Open();
-
-			var sb = new StringBuilder($@"
-				MERGE INTO {typeMeta.TableName} AS Target
-				USING
-				(
-					VALUES({typeMeta.PropertiesExceptComputed.ParameterList()})
-				) AS Source({typeMeta.PropertiesExceptComputed.ColumnList()})
-				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
+			return await connection.MergeBulkAsync(
+				new[] { entitiesToMerge },
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				key: key,
+				matched: matched,
+				notMatchedByTarget: notMatchedByTarget,
+				notMatchedBySource: notMatchedBySource
 			);
-
-			sb.AppendLine();
-
-			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
-			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
-			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
-			// MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
-			sb.Append(";");
-
-			var merged = await connection.ExecuteAsync(sb.ToString(), entitiesToMerge, commandTimeout: commandTimeout, transaction: transaction);
-
-			if (wasClosed) connection.Close();
-
-			return merged;
 		}
 
 		/// <summary>
@@ -96,7 +65,8 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			IEnumerable<T> entitiesToUpsert,
 			SqlTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			Action<MergeKeyOptions> key = null
 		) where T : class
 		{
 			var typeMeta = TypeMeta.Get<T>();
@@ -106,15 +76,9 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				transaction,
 				commandTimeout,
 				sqlBulkCopy: sqlBulkCopy,
-				matched =>
-				{
-					matched.Action = MergeAction.Update;
-					matched.Condition = typeMeta.PropertiesExceptKeyAndComputed.ColumnListDifferenceCheck();
-				},
-				notMatchedByTarget =>
-				{
-					notMatchedByTarget.Action = MergeAction.Insert;
-				}
+				key: key,
+				matched: matched => matched.Update(),
+				notMatchedByTarget: notMatchedByTarget => notMatchedByTarget.Insert()
 			);
 		}
 
@@ -133,9 +97,10 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			SqlTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<MergeActionOptions> matched = null,
-			Action<MergeActionOptions> notMatchedByTarget = null,
-			Action<MergeActionOptions> notMatchedBySource = null
+			Action<MergeKeyOptions> key = null,
+			Action<MergeActionOptions<T>> matched = null,
+			Action<MergeActionOptions<T>> notMatchedByTarget = null,
+			Action<MergeActionOptions<T>> notMatchedBySource = null
 		) where T : class
 		{
 			if (entitiesToMerge == null)
@@ -146,7 +111,14 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				return 0;
 
 			if (entityCount == 1)
-				return await connection.UpsertAsync(entitiesToMerge.FirstOrDefault(), transaction: transaction, commandTimeout: commandTimeout);
+				return await connection.MergeAsync(
+					entitiesToMerge.FirstOrDefault(),
+					transaction: transaction,
+					commandTimeout: commandTimeout,
+					matched: matched,
+					notMatchedByTarget: notMatchedByTarget,
+					notMatchedBySource: notMatchedBySource
+				);
 
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
@@ -155,9 +127,8 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			var wasClosed = connection.State == System.Data.ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var insertedTableName = await connection.TransferBulkAsync(
+			var (source, parameters) = await connection.BulkSource<T>(
 				entitiesToMerge,
-				typeMeta.TableName,
 				typeMeta.Properties,
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -165,43 +136,44 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 
 			var sb = new StringBuilder($@"
 				MERGE INTO {typeMeta.TableName} AS Target
-				USING {insertedTableName} AS Source
-				ON ({typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")})"
+				USING {source} AS Source
+				ON ({OnColumns(typeMeta, keyAction: key).ColumnListEquals(" AND ")})"
 			);
-
 			sb.AppendLine();
 
 			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
-			MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
+			//MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
 			sb.Append(";");
 
-			var merged = await connection.ExecuteAsync(sb.ToString(), commandTimeout: commandTimeout, transaction: transaction);
+			var merged = await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
 			return merged;
 		}
 
-		public static void Format(this MergeMatchResult result, TypeMeta typeMeta, Action<MergeActionOptions> optionsAction, StringBuilder sb)
+		public static IEnumerable<string> OnColumns(TypeMeta typeMeta, Action<MergeKeyOptions> keyAction = null)
+		{
+			var options = new MergeKeyOptions();
+			if (keyAction == null)
+				options.ColumnsByPropertyInfo(typeMeta.PropertiesKeyAndExplicit);
+			else
+				keyAction(options);
+
+			return options.Columns;
+		}
+
+		public static void Format<T>(this MergeMatchResult result, TypeMeta typeMeta, Action<MergeActionOptions<T>> optionsAction, StringBuilder sb)
 		{
 			if (optionsAction == null)
 				return;
 
-			var options = new MergeActionOptions();
+			var options = new MergeActionOptions<T>();
 			optionsAction(options);
 			if (options.Action == MergeAction.None)
 				return;
-
-			if (options.Columns == null)
-				options.Columns = typeMeta.PropertiesExceptKeyAndComputed;
-
-			if (options.Key == null)
-				options.Key = typeMeta.PropertiesKey;
-
-			if (options.Computed == null)
-				options.Computed = typeMeta.PropertiesComputed;
 
 			switch (result)
 			{
@@ -220,27 +192,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				sb.AppendFormat(" AND ({0})", options.Condition);
 			sb.AppendLine(" THEN");
 
-			MergeActionFormat(options, sb);
-		}
-
-		public static void MergeActionFormat(MergeActionOptions options, StringBuilder sb)
-		{
-			switch (options.Action)
-			{
-				case MergeAction.Insert:
-					sb.AppendFormat("INSERT({0})", options.Columns.ColumnList());
-					sb.AppendLine();
-					sb.AppendFormat("VALUES({0})", options.Columns.ColumnList("Source"));
-					sb.AppendLine();
-					break;
-				case MergeAction.Update:
-					sb.AppendLine("UPDATE SET");
-					sb.AppendLine(options.Columns.ColumnListEquals(", ", leftPrefix: string.Empty));
-					break;
-				case MergeAction.Delete:
-					sb.AppendLine("DELETE");
-					break;
-			}
+			options.Format(sb);
 		}
 
 		private static void MergeOutputFormat(IEnumerable<PropertyInfo> properties, StringBuilder sb)

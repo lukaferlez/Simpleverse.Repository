@@ -7,7 +7,6 @@ using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
 using Dapper.Contrib.Extensions;
-using System.Text;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -70,25 +69,12 @@ namespace Simpleverse.Dapper.SqlServer
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000)
 			{
-				var parameters = new DynamicParameters();
+				var (valuesQuery, parameters) = columnsToCopy.ColumnListAsValueParamaters(entitiesToInsert);
 
-				var query = new StringBuilder($"INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()}) VALUES");
-
-				int index = 0;
-				foreach(var entity in entitiesToInsert)
-				{
-					var parameterList = columnsToCopy.ParameterList($"_{index}");
-					if (index > 0)
-						query.AppendLine(",");
-					query.Append($"({parameterList})");
-
-					foreach(var column in columnsToCopy)
-					{
-						parameters.Add(column.ParameterName($"_{index}"), column.GetValue(entity));
-					}
-
-					index++;
-				}
+				var query = $@"
+					INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()})
+					{valuesQuery}
+				";
 
 				await connection.ExecuteAsync(
 					query.ToString(),
@@ -156,7 +142,7 @@ namespace Simpleverse.Dapper.SqlServer
 							{
 								if (value == null)
 									return DBNull.Value;
-								
+
 								if (x.CastType != null)
 									return Convert.ChangeType(value, x.CastType);
 
@@ -185,6 +171,9 @@ namespace Simpleverse.Dapper.SqlServer
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
+			if (!entitiesToGet.Any())
+				return new List<T>();
+
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
@@ -192,9 +181,8 @@ namespace Simpleverse.Dapper.SqlServer
 			var wasClosed = connection.State == ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var insertedTableName = await connection.TransferBulkAsync(
+			var (source, parameters) = await connection.BulkSource<T>(
 				entitiesToGet,
-				typeMeta.TableName,
 				typeMeta.PropertiesKeyAndExplicit,
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -203,12 +191,12 @@ namespace Simpleverse.Dapper.SqlServer
 			var query = $@"
 				SELECT *
 				FROM
-					{ insertedTableName } AS Source
+					{ source } AS Source
 					INNER JOIN { typeMeta.TableName } AS Target
 						ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
 			";
 
-			var enities = await connection.QueryAsync<T>(query, commandTimeout: commandTimeout, transaction: transaction);
+			var enities = await connection.QueryAsync<T>(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
@@ -239,21 +227,26 @@ namespace Simpleverse.Dapper.SqlServer
 			if (entityCount == 1)
 				return await connection.InsertAsync(entitiesToInsert, transaction: transaction, commandTimeout: commandTimeout);
 
-			var meta = TypeMeta.Get<T>();
+			var typeMeta = TypeMeta.Get<T>();
 
 			var wasClosed = connection.State == ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var insertedTableName = await connection.TransferBulkAsync(entitiesToInsert, transaction: transaction, sqlBulkCopy: sqlBulkCopy);
+			var (source, parameters) = await connection.BulkSource(
+				entitiesToInsert,
+				typeMeta.PropertiesExceptKeyAndComputed,
+				transaction: transaction,
+				sqlBulkCopy: sqlBulkCopy
+			);
 
-			var columnList = meta.PropertiesExceptKeyAndComputed.ColumnList();
+			var columnList = typeMeta.PropertiesExceptKeyAndComputed.ColumnList();
 
 			var query = $@"
-                INSERT INTO {meta.TableName} ({columnList}) 
-                SELECT {columnList} FROM {insertedTableName};
+				INSERT INTO {typeMeta.TableName} ({columnList}) 
+				SELECT {columnList} FROM {source} AS Source;
 			";
 
-			var inserted = await connection.ExecuteAsync(query, commandTimeout, transaction);
+			var inserted = await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
@@ -293,19 +286,24 @@ namespace Simpleverse.Dapper.SqlServer
 			var wasClosed = connection.State == ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var insertedTableName = await connection.TransferBulkAsync(entitiesToUpdate, transaction: transaction, sqlBulkCopy: sqlBulkCopy);
+			var (source, parameters) = await connection.BulkSource(
+				entitiesToUpdate,
+				typeMeta.Properties,
+				transaction: transaction,
+				sqlBulkCopy: sqlBulkCopy
+			);
 
 			var query = $@"
 				UPDATE Target
 				SET
 					{ typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ") }
 				FROM
-					{ insertedTableName } AS Source
+					{ source } AS Source
 					INNER JOIN { typeMeta.TableName } AS Target
 						ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
 			";
 
-			var updated = await connection.ExecuteAsync(query, commandTimeout: commandTimeout, transaction: transaction);
+			var updated = await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
@@ -343,9 +341,8 @@ namespace Simpleverse.Dapper.SqlServer
 			var wasClosed = connection.State == ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var insertedTableName = await connection.TransferBulkAsync(
+			var (source, parameters) = await connection.BulkSource(
 				entitiesToDelete,
-				typeMeta.TableName,
 				typeMeta.PropertiesKeyAndExplicit,
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -354,16 +351,67 @@ namespace Simpleverse.Dapper.SqlServer
 			var query = $@"
 				DELETE Target
 				FROM
-					{ insertedTableName } AS Source
+					{ source } AS Source
 					INNER JOIN { typeMeta.TableName } AS Target
 						ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
 			";
 
-			var deleted = await connection.ExecuteAsync(query, commandTimeout: commandTimeout, transaction: transaction);
+			var deleted = await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 
 			if (wasClosed) connection.Close();
 
 			return deleted;
+		}
+
+		public static async Task<(string source, DynamicParameters parameters)> BulkSource<T>(
+			this SqlConnection connection,
+			IEnumerable<T> entities,
+			IEnumerable<PropertyInfo> properties,
+			SqlTransaction transaction = null,
+			Action<SqlBulkCopy> sqlBulkCopy = null
+		)
+		{
+			var entityCount = entities.Count();
+
+			if (entities == null)
+				throw new ArgumentNullException(nameof(entities));
+
+			if (properties == null)
+				throw new ArgumentNullException(nameof(properties));
+
+			if (entityCount == 0)
+				throw new ArgumentOutOfRangeException(nameof(entities));
+
+			if (entityCount * properties.Count() >= 2000)
+			{
+				var typeMeta = TypeMeta.Get<T>();
+
+				var insertedTableName = await connection.TransferBulkAsync(
+					entities,
+					typeMeta.TableName,
+					typeMeta.PropertiesKeyAndExplicit,
+					transaction: transaction,
+					sqlBulkCopy: sqlBulkCopy
+				);
+
+				return (insertedTableName, null);
+			}
+
+			var (valueQuery, parameters) = properties.ColumnListAsValueParamaters(entities);
+			var source = $@"
+				(
+					SELECT *
+					FROM
+					(
+						{valueQuery}
+					)
+						AS SourceInner (
+							{ properties.ColumnList() }
+						)
+				)
+			";
+
+			return (source, parameters);
 		}
 	}
 }

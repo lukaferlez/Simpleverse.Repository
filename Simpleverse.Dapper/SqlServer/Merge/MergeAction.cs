@@ -5,6 +5,7 @@
 		None,
 		Insert,
 		Update,
-		Delete
+		Delete,
+		Query
 	}
 }
