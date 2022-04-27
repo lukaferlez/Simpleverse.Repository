@@ -20,7 +20,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 		)
 			where T : class
 		{
-			return await connection.UpsertAsync(
+			return await connection.UpsertBulkAsync(
 				new[] { entitiesToUpsert },
 				transaction: transaction,
 				commandTimeout: commandTimeout,
@@ -77,8 +77,8 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				commandTimeout,
 				sqlBulkCopy: sqlBulkCopy,
 				key: key,
-				matched: matched => matched.Update(),
-				notMatchedByTarget: notMatchedByTarget => notMatchedByTarget.Insert()
+				matched: options => options.Update(),
+				notMatchedByTarget: options => options.Insert()
 			);
 		}
 
@@ -109,16 +109,6 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			var entityCount = entitiesToMerge.Count();
 			if (entityCount == 0)
 				return 0;
-
-			if (entityCount == 1)
-				return await connection.MergeAsync(
-					entitiesToMerge.FirstOrDefault(),
-					transaction: transaction,
-					commandTimeout: commandTimeout,
-					matched: matched,
-					notMatchedByTarget: notMatchedByTarget,
-					notMatchedBySource: notMatchedBySource
-				);
 
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)

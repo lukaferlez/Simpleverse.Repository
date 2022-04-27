@@ -26,7 +26,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			var typeMeta = TypeMeta.Get<T>();
 			Action = MergeAction.Update;
 			ColumnsByPropertyInfo(typeMeta.PropertiesExceptKeyAndComputed);
-			CheckCondition(Columns.ColumnListDifferenceCheck());
+			CheckConditionOnColumns();
 
 			return this;
 		}
