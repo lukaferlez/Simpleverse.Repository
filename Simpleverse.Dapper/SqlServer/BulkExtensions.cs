@@ -389,7 +389,7 @@ namespace Simpleverse.Dapper.SqlServer
 				var insertedTableName = await connection.TransferBulkAsync(
 					entities,
 					typeMeta.TableName,
-					typeMeta.PropertiesKeyAndExplicit,
+					properties,
 					transaction: transaction,
 					sqlBulkCopy: sqlBulkCopy
 				);
