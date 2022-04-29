@@ -114,34 +114,29 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var wasClosed = connection.State == System.Data.ConnectionState.Closed;
-			if (wasClosed) connection.Open();
-
-			var (source, parameters) = await connection.BulkSource<T>(
+			var result = await connection.Execute(
 				entitiesToMerge,
 				typeMeta.Properties,
-				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				async (connection, transaction, source, parameters, properties) =>
+				{
+					var sb = new StringBuilder($@"
+						MERGE INTO {typeMeta.TableName} AS Target
+						USING {source} AS Source
+						ON ({OnColumns(typeMeta, keyAction: key).ColumnListEquals(" AND ")})"
+					);
+					sb.AppendLine();
+
+					MergeMatchResult.Matched.Format(typeMeta, matched, sb);
+					MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
+					MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
+					//MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
+					sb.Append(";");
+
+					return await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+				},
+				transaction: transaction
 			);
-
-			var sb = new StringBuilder($@"
-				MERGE INTO {typeMeta.TableName} AS Target
-				USING {source} AS Source
-				ON ({OnColumns(typeMeta, keyAction: key).ColumnListEquals(" AND ")})"
-			);
-			sb.AppendLine();
-
-			MergeMatchResult.Matched.Format(typeMeta, matched, sb);
-			MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
-			MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
-			//MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
-			sb.Append(";");
-
-			var merged = await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
-
-			if (wasClosed) connection.Close();
-
-			return merged;
+			return result.Sum();
 		}
 
 		public static IEnumerable<string> OnColumns(TypeMeta typeMeta, Action<MergeKeyOptions> keyAction = null)

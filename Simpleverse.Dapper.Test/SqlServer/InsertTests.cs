@@ -89,7 +89,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			return new object[] { TestName(name, count), generator(count), check, count };
 		}
 
-		private static string TestName(string name, int itemCount) => $"{name}{(itemCount == 1 ? "Single" : "Multiple")}";
+		private static string TestName(string name, int itemCount) => $"{name}-{itemCount}";
 
 		public static object[] TableEscapeTest(int count) =>
 			Generate(nameof(TableEscapeTest), TestData.TableEscapeData, (record, inserted) => { Assert.Equal(record.NoId, record.NoId); }, count);
@@ -183,24 +183,36 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		public IEnumerator<object[]> GetEnumerator()
 		{
-			yield return TableEscapeTest(1);
-			yield return TableEscapeTest(10);
-			yield return TableEscapeWithSchemaTest(1);
-			yield return TableEscapeWithSchemaTest(10);
-			yield return IdentityTest(1);
-			yield return IdentityTest(10);
-			yield return ExplicitKeyTest(1);
-			yield return ExplicitKeyTest(10);
-			yield return IdentityAndExplictTest(1);
-			yield return IdentityAndExplictTest(10);
-			yield return ComputedTest(1);
-			yield return ComputedTest(10);
-			yield return WriteTest(1);
-			yield return WriteTest(10);
-			yield return DataTypeTest(1);
-			yield return DataTypeTest(10);
-			yield return DataTypeNullableTest(1);
-			yield return DataTypeNullableTest(10);
+			foreach(var data in DataSet(0))
+				yield return data;
+
+			foreach (var data in DataSet(1))
+				yield return data;
+
+			foreach (var data in DataSet(10))
+				yield return data;
+
+			foreach (var data in DataSet(500))
+				yield return data;
+
+			//foreach (var data in DataSet(3000))
+			//	yield return data;
+
+			//foreach (var data in DataSet(20010))
+			//	yield return data;
+		}
+
+		public IEnumerable<object[]> DataSet(int count)
+		{
+			yield return TableEscapeTest(count);
+			yield return TableEscapeWithSchemaTest(count);
+			yield return IdentityTest(count);
+			yield return ExplicitKeyTest(count);
+			yield return IdentityAndExplictTest(count);
+			yield return ComputedTest(count);
+			yield return WriteTest(count);
+			yield return DataTypeTest(count);
+			yield return DataTypeNullableTest(count);
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

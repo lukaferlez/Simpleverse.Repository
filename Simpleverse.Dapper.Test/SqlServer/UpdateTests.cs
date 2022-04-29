@@ -99,18 +99,30 @@ namespace Simpleverse.Dapper.Test.SqlServer
 	{
 		public IEnumerator<object[]> GetEnumerator()
 		{
-			yield return InsertTestData.IdentityTest(2);
-			yield return InsertTestData.IdentityTest(10);
-			yield return InsertTestData.IdentityAndExplictTest(2);
-			yield return InsertTestData.IdentityAndExplictTest(10);
-			yield return InsertTestData.ComputedTest(2);
-			yield return InsertTestData.ComputedTest(10);
-			yield return InsertTestData.WriteTest(2);
-			yield return InsertTestData.WriteTest(10);
-			yield return InsertTestData.DataTypeTest(2);
-			yield return InsertTestData.DataTypeTest(10);
-			yield return InsertTestData.DataTypeNullableTest(2);
-			yield return InsertTestData.DataTypeNullableTest(10);
+			foreach (var data in DataSet(2))
+				yield return data;
+
+			foreach (var data in DataSet(10))
+				yield return data;
+
+			foreach (var data in DataSet(500))
+				yield return data;
+
+			//foreach (var data in DataSet(3000))
+			//	yield return data;
+
+			//foreach (var data in DataSet(20010))
+			//	yield return data;
+		}
+
+		public IEnumerable<object[]> DataSet(int count)
+		{
+			yield return InsertTestData.IdentityTest(count);
+			yield return InsertTestData.IdentityAndExplictTest(count);
+			yield return InsertTestData.ComputedTest(count);
+			yield return InsertTestData.WriteTest(count);
+			yield return InsertTestData.DataTypeTest(count);
+			yield return InsertTestData.DataTypeNullableTest(count);
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
