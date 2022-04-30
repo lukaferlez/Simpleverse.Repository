@@ -442,26 +442,32 @@ namespace Simpleverse.Dapper.SqlServer
 				transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 
 			var result = new List<R>();
-			await foreach (var (source, parameters) in connection.BulkSourceAsync(
-							entities,
-							properties,
-							transaction: transaction,
-							sqlBulkCopy: sqlBulkCopy
+			try
+			{
+				await foreach (var (source, parameters) in connection.BulkSourceAsync(
+								entities,
+								properties,
+								transaction: transaction,
+								sqlBulkCopy: sqlBulkCopy
+							)
 						)
-					)
+				{
+
+					result.Add(await executor(connection, transaction, source, parameters, properties));
+				}
+			}
+			finally
 			{
 
-				result.Add(await executor(connection, transaction, source, parameters, properties));
-			}
+				if (transactionWasClosed)
+				{
+					transaction.Commit();
+					transaction.Dispose();
+				}
 
-			if (transactionWasClosed)
-			{
-				transaction.Commit();
-				transaction.Dispose();
+				if (connectonWasClosed)
+					connection.Close();
 			}
-
-			if (connectonWasClosed)
-				connection.Close();
 
 			return result;
 		}
