@@ -41,8 +41,7 @@ namespace Simpleverse.Dapper.Test
 			Generate(
 				x => new Computed() {
 					Id = x,
-					Name = x.ToString(),
-					Value = x * 5
+					Name = x.ToString()
 				},
 				count
 			);
@@ -125,6 +124,8 @@ namespace Simpleverse.Dapper.Test
 	{
 		[Computed]
 		public int Value { get; set; }
+		[Computed]
+		public DateTime ValueDate { get; set; }
 	}
 
 	[Table("[Write]")]

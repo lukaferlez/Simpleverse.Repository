@@ -275,7 +275,7 @@ namespace Simpleverse.Dapper.SqlServer
 
 			var result = await connection.Execute(
 				entitiesToUpdate,
-				typeMeta.Properties,
+				typeMeta.PropertiesExceptComputed,
 				async (connection, transaction, source, parameters, properties) =>
 				{
 					var query = $@"

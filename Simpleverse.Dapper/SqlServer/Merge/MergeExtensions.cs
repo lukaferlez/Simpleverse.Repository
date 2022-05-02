@@ -116,7 +116,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 
 			var result = await connection.Execute(
 				entitiesToMerge,
-				typeMeta.Properties,
+				typeMeta.PropertiesExceptComputed,
 				async (connection, transaction, source, parameters, properties) =>
 				{
 					var sb = new StringBuilder($@"
