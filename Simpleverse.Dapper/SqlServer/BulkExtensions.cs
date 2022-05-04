@@ -362,7 +362,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (entityCount == 0)
 				throw new ArgumentOutOfRangeException(nameof(entities));
 
-			if (entityCount > 20000)
+			if (entityCount * properties.Count() > 2000)
 			{
 				var typeMeta = TypeMeta.Get<T>();
 
