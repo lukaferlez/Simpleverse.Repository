@@ -102,11 +102,25 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				count
 			);
 
-		public static object[] IdentityTest(int count) =>
+		public static object[] IdentityTestWithoutId(int count) =>
 			Generate(
-				nameof(IdentityTest),
-				TestData.IdentityData,
-				(record, inserted) => { Assert.Equal(record.Name, inserted.Name); },
+				nameof(IdentityTestWithoutId),
+				TestData.IdentityWithoutIdData,
+				(record, inserted) => {
+					Assert.Equal(inserted.Id, record.Id);
+					Assert.Equal(record.Name, inserted.Name);
+				},
+				count
+			);
+
+		public static object[] IdentityTestWithId(int count) =>
+			Generate(
+				nameof(IdentityTestWithId),
+				TestData.IdentityWithIdData,
+				(record, inserted) => {
+					Assert.Equal(inserted.Id, record.Id);
+					Assert.Equal(record.Name, inserted.Name);
+				},
 				count
 			);
 
@@ -138,7 +152,8 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				TestData.ComputedData,
 				(record, inserted) => {
 					Assert.Equal(record.Name, inserted.Name);
-					Assert.Equal(5, inserted.Value);
+					Assert.Equal(inserted.Value, record.Value);
+					Assert.Equal(inserted.ValueDate, record.ValueDate);
 				},
 				count
 			);
@@ -183,7 +198,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		public IEnumerator<object[]> GetEnumerator()
 		{
-			foreach(var data in DataSet(0))
+			foreach (var data in DataSet(0))
 				yield return data;
 
 			foreach (var data in DataSet(1))
@@ -206,7 +221,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 		{
 			yield return TableEscapeTest(count);
 			yield return TableEscapeWithSchemaTest(count);
-			yield return IdentityTest(count);
+			yield return IdentityTestWithoutId(count);
 			yield return ExplicitKeyTest(count);
 			yield return IdentityAndExplictTest(count);
 			yield return ComputedTest(count);

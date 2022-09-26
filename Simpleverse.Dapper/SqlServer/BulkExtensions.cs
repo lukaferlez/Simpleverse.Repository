@@ -7,6 +7,8 @@ using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
 using Dapper.Contrib.Extensions;
+using System.IO.Compression;
+using System.Collections;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -219,28 +221,35 @@ namespace Simpleverse.Dapper.SqlServer
 			if (entityCount == 0)
 				return 0;
 
-			if (entityCount == 1)
-				return await connection.InsertAsync(entitiesToInsert, transaction: transaction, commandTimeout: commandTimeout);
-
 			var typeMeta = TypeMeta.Get<T>();
 
-			var result = await connection.Execute(
-				entitiesToInsert,
-				typeMeta.PropertiesExceptKeyAndComputed,
-				async (connection, transaction, source, parameters, properties) =>
-				{
-					var columnList = properties.ColumnList();
+			var propertiesKeyAndComputed = typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed);
 
-					var query = $@"
-							INSERT INTO {typeMeta.TableName} ({columnList}) 
-							SELECT {columnList} FROM {source} AS Source;
-						";
+			var result = (
+				await connection.Execute(
+					entitiesToInsert,
+					typeMeta.PropertiesExceptKeyAndComputed,
+					async (connection, transaction, source, parameters, properties) =>
+					{
+						var columnList = properties.ColumnList();
 
-					return await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
-				},
-				transaction: transaction
-			);
-			return result.Sum();
+						var query = $@"
+								INSERT INTO {typeMeta.TableName} ({columnList}) 
+								OUTPUT /**output**/
+								SELECT {columnList} FROM {source} AS Source;
+							";
+
+						query = FormatOutputClause(query, propertiesKeyAndComputed);
+
+						return await connection.QueryAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					},
+					transaction: transaction
+				)
+			).SelectMany(x => x.Select(y => y));
+
+			MapOutputValues(entitiesToInsert, result, propertiesKeyAndComputed);
+
+			return result.Count();
 		}
 
 		/// <summary>
@@ -266,33 +275,38 @@ namespace Simpleverse.Dapper.SqlServer
 			if (entityCount == 0)
 				return 0;
 
-			if (entityCount == 1)
-				return await connection.UpdateAsync(entitiesToUpdate.First(), transaction: transaction, commandTimeout: commandTimeout) ? 1 : 0;
-
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var result = await connection.Execute(
-				entitiesToUpdate,
-				typeMeta.PropertiesExceptComputed,
-				async (connection, transaction, source, parameters, properties) =>
-				{
-					var query = $@"
-						UPDATE Target
-						SET
-							{ typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ") }
-						FROM
-							{ source } AS Source
-							INNER JOIN { typeMeta.TableName } AS Target
-								ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
-					";
+			var result = (
+				await connection.Execute(
+					entitiesToUpdate,
+					typeMeta.PropertiesExceptComputed,
+					async (connection, transaction, source, parameters, properties) =>
+					{
+						var query = $@"
+							UPDATE Target
+							SET
+								{ typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ") }
+							OUTPUT /**output**/
+							FROM
+								{ source } AS Source
+								INNER JOIN { typeMeta.TableName } AS Target
+									ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
+						";
 
-					return await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
-				},
-				transaction: transaction
-			);
-			return result.Sum();
+						query = FormatOutputClause(query, typeMeta.PropertiesComputed);
+
+						return await connection.QueryAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					},
+					transaction: transaction
+				)
+			).SelectMany(x => x.Select(y => y));
+
+			MapOutputValues(entitiesToUpdate, result, typeMeta.PropertiesComputed);
+
+			return result.Count();
 		}
 
 		/// <summary>
@@ -341,6 +355,35 @@ namespace Simpleverse.Dapper.SqlServer
 				transaction: transaction
 			);
 			return result.Sum();
+		}
+
+		private static string FormatOutputClause(string query, IEnumerable<PropertyInfo> properties)
+		{
+			var keyColumns = properties.ColumnList(prefix: "inserted");
+			if (string.IsNullOrWhiteSpace(keyColumns))
+				return query.Replace("/**output**/", "1 AS Item");
+
+			return query.Replace("/**output**/", "1 AS Item," + keyColumns);
+		}
+
+		private static void MapOutputValues<T>(IEnumerable<T> entities, IEnumerable<dynamic> result, IEnumerable<PropertyInfo> propertiesToMap)
+		{
+			if (result == null || !result.Any())
+				return;
+
+			for (int iCount = 0; iCount < entities.Count(); iCount++)
+			{
+				var entityResult = (IDictionary<string, object>)result.ElementAt(iCount);
+				if (entityResult.Count() == 1)
+					continue;
+
+				var entity = entities.ElementAt(iCount);
+
+				foreach (var keyProperty in propertiesToMap)
+				{
+					keyProperty.SetValue(entity, entityResult[keyProperty.Name]);
+				}
+			}
 		}
 
 		public static async IAsyncEnumerable<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
@@ -452,13 +495,11 @@ namespace Simpleverse.Dapper.SqlServer
 							)
 						)
 				{
-
 					result.Add(await executor(connection, transaction, source, parameters, properties));
 				}
 			}
 			finally
 			{
-
 				if (transactionWasClosed)
 				{
 					transaction.Commit();

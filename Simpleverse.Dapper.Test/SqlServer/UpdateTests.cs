@@ -117,7 +117,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		public IEnumerable<object[]> DataSet(int count)
 		{
-			yield return InsertTestData.IdentityTest(count);
+			yield return InsertTestData.IdentityTestWithId(count);
 			yield return InsertTestData.IdentityAndExplictTest(count);
 			yield return InsertTestData.ComputedTest(count);
 			yield return InsertTestData.WriteTest(count);

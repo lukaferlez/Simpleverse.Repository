@@ -21,7 +21,10 @@ namespace Simpleverse.Dapper.Test
 		public static IEnumerable<TableEscapeWithSchema> TableEscapeWithSchemaData(int count) =>
 			Generate(x => new TableEscapeWithSchema() { NoId = x }, count);
 
-		public static IEnumerable<Identity> IdentityData(int count) =>
+		public static IEnumerable<Identity> IdentityWithoutIdData(int count) =>
+			Generate(x => new Identity() { Name = x.ToString() }, count);
+
+		public static IEnumerable<Identity> IdentityWithIdData(int count) =>
 			Generate(x => new Identity() { Id = x, Name = x.ToString() }, count);
 
 		public static IEnumerable<ExplicitKey> ExplicitKeyData(int count) =>

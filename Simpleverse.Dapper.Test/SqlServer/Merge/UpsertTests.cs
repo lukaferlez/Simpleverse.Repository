@@ -51,7 +51,7 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 				// arange
 				connection.Open();
 				connection.Truncate<Identity>();
-				var record = TestData.IdentityData(1).FirstOrDefault();
+				var record = TestData.IdentityWithIdData(1).FirstOrDefault();
 				var inserted = connection.Insert(record);
 
 				record.Name = (record.Id + 2).ToString();
@@ -167,7 +167,7 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 				// arange
 				connection.Open();
 				connection.Truncate<Identity>();
-				var records = TestData.IdentityData(10);
+				var records = TestData.IdentityWithIdData(10);
 				var inserted = connection.Insert(records);
 				records = records.Skip(1);
 				foreach (var record in records)
