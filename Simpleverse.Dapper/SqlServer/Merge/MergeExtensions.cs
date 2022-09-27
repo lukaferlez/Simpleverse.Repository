@@ -111,7 +111,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				return 0;
 
 			var typeMeta = TypeMeta.Get<T>();
-			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
+			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0 && key == null)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
 			var result = await connection.Execute(
