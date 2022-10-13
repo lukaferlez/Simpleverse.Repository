@@ -22,13 +22,13 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(InsertTestData))]
-		public void InsertAsyncTest<T>(string testName, IEnumerable<T> records, Action<T, T> check, int expected) where T: class
+		public void InsertAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T: class
 		{
 			using (var connection = fixture.GetConnection())
 			{
 				Arange<T>(connection);
 
-				var inserted = connection.InsertBulkAsync(records).Result;
+				var inserted = connection.InsertBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
 
 				Assert<T>(connection, records, check, expected, inserted);
 			}
@@ -36,7 +36,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(InsertTestData))]
-		public void InsertTransactionAsyncTest<T>(string testName, IEnumerable<T> records, Action<T, T> check, int expected) where T: class
+		public void InsertTransactionAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T: class
 		{
 			using (var connection = fixture.GetConnection())
 			{
@@ -45,7 +45,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				int inserted = 0;
 				using (var transaction = connection.BeginTransaction())
 				{
-					inserted = connection.InsertBulkAsync(records, transaction: transaction).Result;
+					inserted = connection.InsertBulkAsync(records, transaction: transaction, mapGeneratedValues: mapGeneratedValues).Result;
 					transaction.Commit();
 				}
 
@@ -84,20 +84,26 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 	public class InsertTestData : IEnumerable<object[]>
 	{
-		private static object[] Generate<T>(string name, Func<int, IEnumerable<T>> generator, Action<T, T> check, int count)
+		public static object[] Generate<T>(string name, Func<int, IEnumerable<T>> generator, bool mapGeneratedValues, Action<T, T> check, int count)
 		{
-			return new object[] { TestName(name, count), generator(count), check, count };
+			return new object[] { TestName(name, count), generator(count), mapGeneratedValues, check, count };
+		}
+
+		public static object[] GenerateDuplicate<T>(string name, Func<int, IEnumerable<T>> generator, bool mapGeneratedValues, Action<T, T> check, int count)
+		{
+			return new object[] { TestName(name, count) + "duplicate", generator(count).Union(generator(count)), mapGeneratedValues, check, count * 2 };
 		}
 
 		private static string TestName(string name, int itemCount) => $"{name}-{itemCount}";
 
 		public static object[] TableEscapeTest(int count) =>
-			Generate(nameof(TableEscapeTest), TestData.TableEscapeData, (record, inserted) => { Assert.Equal(record.NoId, record.NoId); }, count);
+			Generate(nameof(TableEscapeTest), TestData.TableEscapeData, false, (record, inserted) => { Assert.Equal(record.NoId, record.NoId); }, count);
 
 		public static object[] TableEscapeWithSchemaTest(int count) =>
 			Generate(
 				nameof(TableEscapeWithSchemaTest),
 				TestData.TableEscapeWithSchemaData,
+				false,
 				(record, inserted) => { Assert.Equal(record.NoId, record.NoId); },
 				count
 			);
@@ -106,8 +112,21 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(IdentityTestWithoutId),
 				TestData.IdentityWithoutIdData,
+				true,
 				(record, inserted) => {
 					Assert.Equal(inserted.Id, record.Id);
+					Assert.Equal(record.Name, inserted.Name);
+				},
+				count
+			);
+
+		public static object[] IdentityTestWithoutIdDuplicate(int count) =>
+			GenerateDuplicate(
+				nameof(IdentityTestWithoutId),
+				TestData.IdentityWithoutIdData,
+				true,
+				(record, inserted) => {
+					Assert.NotEqual(0, record.Id);
 					Assert.Equal(record.Name, inserted.Name);
 				},
 				count
@@ -117,6 +136,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(IdentityTestWithId),
 				TestData.IdentityWithIdData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(inserted.Id, record.Id);
 					Assert.Equal(record.Name, inserted.Name);
@@ -128,6 +148,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(ExplicitKeyTest),
 				TestData.ExplicitKeyData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(record.Id, inserted.Id);
 					Assert.Equal(record.Name, inserted.Name);
@@ -139,6 +160,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(IdentityAndExplictTest),
 				TestData.IdentityAndExplictData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(record.ExplicitKeyId, inserted.ExplicitKeyId);
 					Assert.Equal(record.Name, inserted.Name);
@@ -150,10 +172,26 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(ComputedTest),
 				TestData.ComputedData,
+				true,
 				(record, inserted) => {
 					Assert.Equal(record.Name, inserted.Name);
 					Assert.Equal(inserted.Value, record.Value);
 					Assert.Equal(inserted.ValueDate, record.ValueDate);
+					Assert.Equal(inserted.Value * 2, record.ValueComputed);
+				},
+				count
+			);
+
+		public static object[] ComputedDuplicateTest(int count) =>
+			GenerateDuplicate(
+				nameof(ComputedTest),
+				TestData.ComputedData,
+				true,
+				(record, inserted) => {
+					Assert.Equal(record.Name, inserted.Name);
+					Assert.Equal(inserted.Value, record.Value);
+					Assert.Equal(inserted.ValueDate, record.ValueDate);
+					Assert.Equal(inserted.Value * 2, record.ValueComputed);
 				},
 				count
 			);
@@ -162,6 +200,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(WriteTest),
 				TestData.WriteData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(record.Name, inserted.Name);
 					Assert.Null(inserted.Ignored);
@@ -174,6 +213,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(DataTypeTest),
 				TestData.DataTypeData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(record.Name, inserted.Name);
 					Assert.Equal(record.Enum, inserted.Enum);
@@ -187,6 +227,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			Generate(
 				nameof(DataTypeNullableTest),
 				TestData.DataTypeNullableData,
+				false,
 				(record, inserted) => {
 					Assert.Equal(record.Name, inserted.Name);
 					Assert.Equal(record.Enum, inserted.Enum);
@@ -222,6 +263,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			yield return TableEscapeTest(count);
 			yield return TableEscapeWithSchemaTest(count);
 			yield return IdentityTestWithoutId(count);
+			yield return IdentityTestWithoutIdDuplicate(count);
 			yield return ExplicitKeyTest(count);
 			yield return IdentityAndExplictTest(count);
 			yield return ComputedTest(count);

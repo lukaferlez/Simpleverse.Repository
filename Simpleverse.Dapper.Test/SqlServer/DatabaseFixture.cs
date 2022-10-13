@@ -61,7 +61,8 @@ namespace Simpleverse.Dapper.Test.SqlServer
 						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 						[Name] NVARCHAR(MAX) NULL,
 						[Value] INT NULL DEFAULT 5,
-						[ValueDate] DATETIME NULL DEFAULT '2022-05-02'
+						[ValueDate] DATETIME NULL DEFAULT '2022-05-02',
+						[ValueComputed] AS [Value] * 2
 					);");
 
 				connection.Execute(

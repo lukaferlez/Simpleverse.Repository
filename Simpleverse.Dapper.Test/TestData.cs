@@ -129,6 +129,8 @@ namespace Simpleverse.Dapper.Test
 		public int Value { get; set; }
 		[Computed]
 		public DateTime ValueDate { get; set; }
+		[Computed]
+		public int ValueComputed { get; set; }
 	}
 
 	[Table("[Write]")]

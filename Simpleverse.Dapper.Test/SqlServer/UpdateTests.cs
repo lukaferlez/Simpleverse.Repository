@@ -22,7 +22,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(UpdateTestData))]
-		public void UpdateTest<T>(string testName, IEnumerable<T> records, Action<T, T> check, int expected) where T : Identity
+		public void UpdateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
 		{
 			using (var connection = fixture.GetConnection())
 			{
@@ -34,7 +34,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 					record.Name = (record.Id + 2).ToString();
 
 				// act
-				var updated = connection.UpdateBulkAsync(records).Result;
+				var updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
 
 				// assert
 				Assert(connection, records, check, records.Count(), updated);
@@ -43,7 +43,7 @@ namespace Simpleverse.Dapper.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(UpdateTestData))]
-		public void UpdateTransactionAsyncTest<T>(string testName, IEnumerable<T> records, Action<T, T> check, int expected) where T : Identity
+		public void UpdateTransactionAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
 		{
 			using (var connection = fixture.GetConnection())
 			{
@@ -58,11 +58,33 @@ namespace Simpleverse.Dapper.Test.SqlServer
 				int updated = 0;
 				using (var transaction = connection.BeginTransaction())
 				{
-					updated = connection.UpdateBulkAsync(records, transaction: transaction).Result;
+					updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues, transaction: transaction).Result;
 					transaction.Commit();
 				}
 
 				Assert<T>(connection, records, check, records.Count(), updated);
+			}
+		}
+
+		[Theory]
+		[ClassData(typeof(UpdateDuplicateTestData))]
+		public void UpdateDuplicateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
+		{
+			using (var connection = fixture.GetConnection())
+			{
+				Arange<T>(connection);
+
+				var inserted = connection.Insert(records);
+				var firstRecordId = records.First().Id;
+				records = records.Where(x => x.Id != firstRecordId).ToList();
+				foreach (var record in records)
+					record.Name = (record.Id + 2).ToString();
+
+				// act
+				var updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
+
+				// assert
+				Assert(connection, records, check, records.Count()/2, updated);
 			}
 		}
 
@@ -123,6 +145,34 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			yield return InsertTestData.WriteTest(count);
 			yield return InsertTestData.DataTypeTest(count);
 			yield return InsertTestData.DataTypeNullableTest(count);
+		}
+
+		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	}
+
+	public class UpdateDuplicateTestData : IEnumerable<object[]>
+	{
+		public IEnumerator<object[]> GetEnumerator()
+		{
+			foreach (var data in DataSet(2))
+				yield return data;
+
+			foreach (var data in DataSet(10))
+				yield return data;
+
+			foreach (var data in DataSet(500))
+				yield return data;
+
+			//foreach (var data in DataSet(3000))
+			//	yield return data;
+
+			//foreach (var data in DataSet(20010))
+			//	yield return data;
+		}
+
+		public IEnumerable<object[]> DataSet(int count)
+		{
+			yield return InsertTestData.ComputedDuplicateTest(count);
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

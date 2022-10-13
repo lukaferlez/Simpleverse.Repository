@@ -7,8 +7,9 @@ using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
 using Dapper.Contrib.Extensions;
-using System.IO.Compression;
-using System.Collections;
+using System.Dynamic;
+using System.Xml;
+using System.IO.MemoryMappedFiles;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -214,8 +215,9 @@ namespace Simpleverse.Dapper.SqlServer
 			IEnumerable<T> entitiesToInsert,
 			SqlTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
-			) where T : class
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			bool mapGeneratedValues = false
+		) where T : class
 		{
 			var entityCount = entitiesToInsert.Count();
 			if (entityCount == 0)
@@ -225,6 +227,7 @@ namespace Simpleverse.Dapper.SqlServer
 
 			var propertiesKeyAndComputed = typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed);
 
+			var outputValues = new List<dynamic>();
 			var result = (
 				await connection.Execute(
 					entitiesToInsert,
@@ -234,22 +237,47 @@ namespace Simpleverse.Dapper.SqlServer
 						var columnList = properties.ColumnList();
 
 						var query = $@"
-								INSERT INTO {typeMeta.TableName} ({columnList}) 
-								OUTPUT /**output**/
-								SELECT {columnList} FROM {source} AS Source;
-							";
+							INSERT INTO {typeMeta.TableName} ({columnList}) 
+							{(mapGeneratedValues ? OutputClause() : string.Empty)}
+							SELECT {columnList} FROM {source} AS Source;
+						";
 
-						query = FormatOutputClause(query, propertiesKeyAndComputed);
-
-						return await connection.QueryAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+						if (mapGeneratedValues)
+						{
+							var results = await connection.QueryAsync(
+								query,
+								param: parameters,
+								commandTimeout: commandTimeout,
+								transaction: transaction
+							);
+							outputValues.AddRange(results);
+							return results.Count();
+						}
+						else
+						{
+							return await connection.ExecuteAsync(
+								query,
+								param: parameters,
+								commandTimeout: commandTimeout,
+								transaction: transaction
+							);
+						}
 					},
-					transaction: transaction
+					transaction: transaction,
+					commandTimeout: commandTimeout,
+					sqlBulkCopy: sqlBulkCopy
 				)
-			).SelectMany(x => x.Select(y => y));
+			);
 
-			MapOutputValues(entitiesToInsert, result, propertiesKeyAndComputed);
+			if (mapGeneratedValues)
+				MapGeneratedValues(
+					entitiesToInsert,
+					outputValues,
+					typeMeta.PropertiesExceptKeyAndComputed, propertiesKeyAndComputed,
+					true
+				);
 
-			return result.Count();
+			return result.Sum();
 		}
 
 		/// <summary>
@@ -266,7 +294,8 @@ namespace Simpleverse.Dapper.SqlServer
 			IEnumerable<T> entitiesToUpdate,
 			SqlTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			bool mapGeneratedValues = false
 		) where T : class
 		{
 			entitiesToUpdate = entitiesToUpdate.Where(x => (x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty) || !(x is SqlMapperExtensions.IProxy));
@@ -279,6 +308,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
+			var outputValues = new List<dynamic>();
 			var result = (
 				await connection.Execute(
 					entitiesToUpdate,
@@ -288,25 +318,52 @@ namespace Simpleverse.Dapper.SqlServer
 						var query = $@"
 							UPDATE Target
 							SET
-								{ typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ") }
-							OUTPUT /**output**/
+								{typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ")}
+							{(mapGeneratedValues ? OutputClause() : string.Empty)}
 							FROM
-								{ source } AS Source
-								INNER JOIN { typeMeta.TableName } AS Target
-									ON { typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ") };
+								{source} AS Source
+								INNER JOIN {typeMeta.TableName} AS Target
+									ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
 						";
 
-						query = FormatOutputClause(query, typeMeta.PropertiesComputed);
+						if (mapGeneratedValues)
+						{
+							var results = await connection.QueryAsync(
+								query,
+								param: parameters,
+								commandTimeout: commandTimeout,
+								transaction: transaction
+							);
 
-						return await connection.QueryAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+							outputValues.AddRange(results);
+							return results.Count();
+						}
+						else
+						{
+							return await connection.ExecuteAsync(
+								query,
+								param: parameters,
+								commandTimeout: commandTimeout,
+								transaction: transaction
+							);
+						}
 					},
-					transaction: transaction
+					transaction: transaction,
+					commandTimeout: commandTimeout,
+					sqlBulkCopy: sqlBulkCopy
 				)
-			).SelectMany(x => x.Select(y => y));
+			);
 
-			MapOutputValues(entitiesToUpdate, result, typeMeta.PropertiesComputed);
+			if (mapGeneratedValues)
+				MapGeneratedValues(
+					entitiesToUpdate,
+					outputValues,
+					typeMeta.PropertiesKeyAndExplicit,
+					typeMeta.PropertiesComputed,
+					false
+				);
 
-			return result.Count();
+			return result.Sum();
 		}
 
 		/// <summary>
@@ -352,36 +409,75 @@ namespace Simpleverse.Dapper.SqlServer
 
 					return await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 				},
-				transaction: transaction
+				transaction: transaction,
+					commandTimeout: commandTimeout,
+					sqlBulkCopy: sqlBulkCopy
 			);
 			return result.Sum();
 		}
 
-		private static string FormatOutputClause(string query, IEnumerable<PropertyInfo> properties)
+		private static string OutputClause(IEnumerable<PropertyInfo> properties = null)
 		{
-			var keyColumns = properties.ColumnList(prefix: "inserted");
+			var keyColumns = properties?.ColumnList(prefix: "inserted");
 			if (string.IsNullOrWhiteSpace(keyColumns))
-				return query.Replace("/**output**/", "1 AS Item");
+				return "OUTPUT inserted.*";
 
-			return query.Replace("/**output**/", "1 AS Item," + keyColumns);
+			return "OUTPUT " + keyColumns;
 		}
 
-		private static void MapOutputValues<T>(IEnumerable<T> entities, IEnumerable<dynamic> result, IEnumerable<PropertyInfo> propertiesToMap)
+		private static void MapGeneratedValues<T>(
+			IEnumerable<T> entities,
+			IEnumerable<dynamic> results,
+			IEnumerable<PropertyInfo> matchProperties,
+			IEnumerable<PropertyInfo> propertiesToMap,
+			bool mapResultOnce)
 		{
-			if (result == null || !result.Any())
+			if (results == null || !results.Any())
 				return;
 
-			for (int iCount = 0; iCount < entities.Count(); iCount++)
+			var entitiesWithMapping = entities
+				.Select(x =>
+					{ 
+						dynamic entity = new ExpandoObject();
+						entity.Entity = x;
+						entity.Mapped = false;
+						return entity;
+					}
+				)
+				.ToList();
+
+			foreach (IDictionary<string, object> result in results)
 			{
-				var entityResult = (IDictionary<string, object>)result.ElementAt(iCount);
-				if (entityResult.Count() == 1)
+				if (result.Count() == 0)
 					continue;
 
-				var entity = entities.ElementAt(iCount);
-
-				foreach (var keyProperty in propertiesToMap)
+				for (int iCount = 0; iCount < entitiesWithMapping.Count(); iCount++)
 				{
-					keyProperty.SetValue(entity, entityResult[keyProperty.Name]);
+					var entity = entitiesWithMapping[iCount];
+					if (entity.Mapped)
+						continue;
+
+					var found = true;
+					foreach (var property in matchProperties)
+					{
+						if (!property.GetValue(entity.Entity).Equals(result[property.Name]))
+						{
+							found = false;
+							break;
+						}
+					}
+
+					if (found)
+					{
+						foreach (var keyProperty in propertiesToMap)
+						{
+							keyProperty.SetValue(entity.Entity, result[keyProperty.Name]);
+						}
+						entity.Mapped = true;
+
+						if (mapResultOnce)
+							break;
+					}
 				}
 			}
 		}
