@@ -460,7 +460,14 @@ namespace Simpleverse.Dapper.SqlServer
 					var found = true;
 					foreach (var property in matchProperties)
 					{
-						if (!property.GetValue(entity.Entity).Equals(result[property.Name]))
+						var entityValue = property.GetValue(entity.Entity);
+						var resultValue = result[property.Name];
+
+						if (!(
+							(entityValue == null && resultValue == null) ||
+							(entityValue != null && entityValue.Equals(resultValue)) ||
+							(resultValue != null && resultValue.Equals(entityValue))
+						))
 						{
 							found = false;
 							break;
