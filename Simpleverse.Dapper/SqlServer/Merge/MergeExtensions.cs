@@ -114,7 +114,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0 && key == null)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var result = await connection.Execute(
+			var result = await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
 				async (connection, transaction, source, parameters, properties) =>
@@ -136,7 +136,7 @@ namespace Simpleverse.Dapper.SqlServer.Merge
 				},
 				transaction: transaction
 			);
-			return result.Sum();
+			return result;
 		}
 
 		public static IEnumerable<string> OnColumns(TypeMeta typeMeta, Action<MergeKeyOptions> keyAction = null)

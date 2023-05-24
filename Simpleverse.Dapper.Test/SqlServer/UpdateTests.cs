@@ -130,8 +130,8 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			foreach (var data in DataSet(500))
 				yield return data;
 
-			//foreach (var data in DataSet(3000))
-			//	yield return data;
+			foreach (var data in DataSet(3000))
+				yield return data;
 
 			//foreach (var data in DataSet(20010))
 			//	yield return data;
@@ -163,8 +163,8 @@ namespace Simpleverse.Dapper.Test.SqlServer
 			foreach (var data in DataSet(500))
 				yield return data;
 
-			//foreach (var data in DataSet(3000))
-			//	yield return data;
+			foreach (var data in DataSet(3000))
+				yield return data;
 
 			//foreach (var data in DataSet(20010))
 			//	yield return data;

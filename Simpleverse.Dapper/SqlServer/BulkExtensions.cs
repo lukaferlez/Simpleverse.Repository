@@ -10,6 +10,8 @@ using Dapper.Contrib.Extensions;
 using System.Dynamic;
 using System.Xml;
 using System.IO.MemoryMappedFiles;
+using System.Security.Cryptography;
+using Microsoft.Win32.SafeHandles;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -72,18 +74,24 @@ namespace Simpleverse.Dapper.SqlServer
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000)
 			{
-				var (valuesQuery, parameters) = columnsToCopy.ColumnListAsValueParamaters(entitiesToInsert);
+				var maxParams = 2000M;
+				var batchSize = Math.Min((int)Math.Floor(maxParams / columnsToCopy.Count()), 1000);
 
-				var query = $@"
-					INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()})
-					{valuesQuery}
-				";
+				foreach (var batch in entitiesToInsert.Batch(batchSize))
+				{
+					var (valuesQuery, parameters) = columnsToCopy.ColumnListAsValueParamaters(batch);
 
-				await connection.ExecuteAsync(
-					query.ToString(),
-					parameters,
-					transaction: transaction
-				);
+					var query = $@"
+						INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()})
+						{valuesQuery}
+					";
+
+					await connection.ExecuteAsync(
+						query.ToString(),
+						parameters,
+						transaction: transaction
+					);
+				}
 			}
 			else
 			{
@@ -181,7 +189,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var result = await connection.Execute(
+			var result = await connection.ExecuteAsync(
 				entitiesToGet,
 				typeMeta.PropertiesKeyAndExplicit,
 				async (connection, transaction, source, parameters, properties) =>
@@ -198,7 +206,7 @@ namespace Simpleverse.Dapper.SqlServer
 				},
 				transaction: transaction
 			);
-			return result.SelectMany(x => x.Select(y => y));
+			return result;
 		}
 
 		/// <summary>
@@ -229,7 +237,7 @@ namespace Simpleverse.Dapper.SqlServer
 
 			var outputValues = new List<dynamic>();
 			var result = (
-				await connection.Execute(
+				await connection.ExecuteAsync(
 					entitiesToInsert,
 					typeMeta.PropertiesExceptKeyAndComputed,
 					async (connection, transaction, source, parameters, properties) =>
@@ -264,7 +272,6 @@ namespace Simpleverse.Dapper.SqlServer
 						}
 					},
 					transaction: transaction,
-					commandTimeout: commandTimeout,
 					sqlBulkCopy: sqlBulkCopy
 				)
 			);
@@ -277,7 +284,7 @@ namespace Simpleverse.Dapper.SqlServer
 					true
 				);
 
-			return result.Sum();
+			return result;
 		}
 
 		/// <summary>
@@ -310,7 +317,7 @@ namespace Simpleverse.Dapper.SqlServer
 
 			var outputValues = new List<dynamic>();
 			var result = (
-				await connection.Execute(
+				await connection.ExecuteAsync(
 					entitiesToUpdate,
 					typeMeta.PropertiesExceptComputed,
 					async (connection, transaction, source, parameters, properties) =>
@@ -349,7 +356,6 @@ namespace Simpleverse.Dapper.SqlServer
 						}
 					},
 					transaction: transaction,
-					commandTimeout: commandTimeout,
 					sqlBulkCopy: sqlBulkCopy
 				)
 			);
@@ -363,7 +369,7 @@ namespace Simpleverse.Dapper.SqlServer
 					false
 				);
 
-			return result.Sum();
+			return result;
 		}
 
 		/// <summary>
@@ -394,7 +400,7 @@ namespace Simpleverse.Dapper.SqlServer
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var result = await connection.Execute(
+			var result = await connection.ExecuteAsync(
 				entitiesToDelete,
 				typeMeta.PropertiesKeyAndExplicit,
 				async (connection, transaction, source, parameters, properties) =>
@@ -410,10 +416,9 @@ namespace Simpleverse.Dapper.SqlServer
 					return await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
 				},
 				transaction: transaction,
-					commandTimeout: commandTimeout,
-					sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy
 			);
-			return result.Sum();
+			return result;
 		}
 
 		private static string OutputClause(IEnumerable<PropertyInfo> properties = null)
@@ -489,7 +494,7 @@ namespace Simpleverse.Dapper.SqlServer
 			}
 		}
 
-		public static async IAsyncEnumerable<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
+		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
 			this SqlConnection connection,
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
@@ -508,28 +513,9 @@ namespace Simpleverse.Dapper.SqlServer
 			if (entityCount == 0)
 				throw new ArgumentOutOfRangeException(nameof(entities));
 
-			if (entityCount * properties.Count() > 2000)
+			if (entityCount * properties.Count() < 2000)
 			{
-				var typeMeta = TypeMeta.Get<T>();
-
-				var insertedTableName = await connection.TransferBulkAsync(
-					entities,
-					typeMeta.TableName,
-					properties,
-					transaction: transaction,
-					sqlBulkCopy: sqlBulkCopy
-				);
-
-				yield return (insertedTableName, null);
-				yield break;
-			}
-
-			var maxParams = 2000M;
-			var batchSize = (int) Math.Floor(maxParams / properties.Count());
-
-			foreach(var batch in entities.Batch(batchSize))
-			{
-				var (valueQuery, parameters) = properties.ColumnListAsValueParamaters(batch);
+				var (valueQuery, parameters) = properties.ColumnListAsValueParamaters(entities);
 				var source = $@"
 					(
 						SELECT *
@@ -538,15 +524,25 @@ namespace Simpleverse.Dapper.SqlServer
 							{valueQuery}
 						)
 							AS SourceInner (
-								{ properties.ColumnList() }
+								{properties.ColumnList()}
 							)
 					)
 				";
 
-				yield return (source, parameters);
+				return (source, parameters);
 			}
 
-			yield break;
+			var typeMeta = TypeMeta.Get<T>();
+
+			var insertedTableName = await connection.TransferBulkAsync(
+				entities,
+				typeMeta.TableName,
+				properties,
+				transaction: transaction,
+				sqlBulkCopy: sqlBulkCopy
+			);
+
+			return (insertedTableName, null);
 		}
 
 		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int size)
@@ -569,13 +565,12 @@ namespace Simpleverse.Dapper.SqlServer
 				yield return batch;
 		}
 
-		public static async Task<IEnumerable<R>> Execute<T, R>(
+		public static async Task<R> ExecuteAsync<T, R>(
 			this SqlConnection connection,
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
 			Func<SqlConnection, SqlTransaction, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
 			SqlTransaction transaction = null,
-			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
@@ -587,19 +582,17 @@ namespace Simpleverse.Dapper.SqlServer
 			if (transactionWasClosed)
 				transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 
-			var result = new List<R>();
+			var result = default(R);
 			try
 			{
-				await foreach (var (source, parameters) in connection.BulkSourceAsync(
-								entities,
-								properties,
-								transaction: transaction,
-								sqlBulkCopy: sqlBulkCopy
-							)
-						)
-				{
-					result.Add(await executor(connection, transaction, source, parameters, properties));
-				}
+				var (source, parameters) = await connection.BulkSourceAsync(
+					entities,
+					properties,
+					transaction: transaction,
+					sqlBulkCopy: sqlBulkCopy
+				);
+
+				result = await executor(connection, transaction, source, parameters, properties);
 			}
 			finally
 			{
