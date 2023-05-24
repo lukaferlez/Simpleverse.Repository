@@ -6,22 +6,22 @@
     <Authors>Luka Ferlež</Authors>
     <Company />
     <Product>Simpleverse.Dapper</Product>
-    <Copyright>2022 Luka Ferlež</Copyright>
+    <Copyright>2023 Luka Ferlež</Copyright>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/lukaferlez/Simpleverse.Dapper</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>Dapper, Bulk, Merge, Upsert, Delete, Insert, Update</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.0.26</Version>
+    <Version>1.0.27</Version>
     <Description>High performance operation for MS SQL Server built for Dapper ORM. Including bulk operations Insert, Update, Delete, Get as well as Upsert both single and bulk.</Description>
-    <AssemblyVersion>1.0.26.0</AssemblyVersion>
-    <FileVersion>1.0.26.0</FileVersion>
+    <AssemblyVersion>1.0.27.0</AssemblyVersion>
+    <FileVersion>1.0.27.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper.Contrib" Version="2.0.78" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.1" />
   </ItemGroup>
 
   <ItemGroup>
