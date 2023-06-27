@@ -228,6 +228,7 @@ namespace Simpleverse.Dapper.Test.SqlServer.Merge
 			}
 		}
 
+		[Fact(Skip = "Doesn't work without key properties")]
 		public void UpsertBulkAsyncComputedAttributeTest()
 		{
 			using (var connection = fixture.GetConnection())

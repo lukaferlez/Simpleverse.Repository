@@ -8,10 +8,6 @@ using System.Threading.Tasks;
 using Dapper;
 using Dapper.Contrib.Extensions;
 using System.Dynamic;
-using System.Xml;
-using System.IO.MemoryMappedFiles;
-using System.Security.Cryptography;
-using Microsoft.Win32.SafeHandles;
 
 namespace Simpleverse.Dapper.SqlServer
 {
@@ -280,7 +276,8 @@ namespace Simpleverse.Dapper.SqlServer
 				MapGeneratedValues(
 					entitiesToInsert,
 					outputValues,
-					typeMeta.PropertiesExceptKeyAndComputed, propertiesKeyAndComputed,
+					typeMeta.PropertiesExceptKeyAndComputed,
+					propertiesKeyAndComputed,
 					true
 				);
 
@@ -465,14 +462,10 @@ namespace Simpleverse.Dapper.SqlServer
 					var found = true;
 					foreach (var property in matchProperties)
 					{
-						var entityValue = property.GetValue(entity.Entity);
+						var entityValue = (object) property.GetValue(entity.Entity);
 						var resultValue = result[property.Name];
 
-						if (!(
-							(entityValue == null && resultValue == null) ||
-							(entityValue != null && entityValue.Equals(resultValue)) ||
-							(resultValue != null && resultValue.Equals(entityValue))
-						))
+						if (!IsEqual(entityValue, resultValue))
 						{
 							found = false;
 							break;
@@ -492,6 +485,30 @@ namespace Simpleverse.Dapper.SqlServer
 					}
 				}
 			}
+		}
+
+		private static bool IsEqual(object entityValue, object resultValue)
+		{
+			if (entityValue == null && resultValue == null)
+				return true;
+
+			if (entityValue != null && entityValue.Equals(resultValue))
+				return true;
+
+			if (resultValue != null && resultValue.Equals(entityValue))
+				return true;
+
+			if (entityValue != null && resultValue != null)
+			{
+				var type = entityValue.GetType();
+				if (type.IsEnum && Enum.IsDefined(type, resultValue))
+					return true;
+
+				if (entityValue is DateTime && resultValue is DateTime)
+					return true;
+			}
+
+			return false;
 		}
 
 		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
