@@ -51,4 +51,5 @@ jobs:
         draft: false
         prerelease: false
     - name: Publish Nuget
-      run: dotnet nuget push "/**/release/*.nupkg" --api-key ${{secrets.nuget_api_key}} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push "**/*.nupkg" --api-key ${{secrets.nuget_api_key}} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      working-directory: ${{env.src-dir}}
