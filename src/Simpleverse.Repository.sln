@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository.Db",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository.Db.Test", "Simpleverse.Repository.Db.Test\Simpleverse.Repository.Db.Test.csproj", "{60A89DE6-25D5-4C46-8D25-ED7F15DC5395}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository.Entity", "Simpleverse.Repository.Entity\Simpleverse.Repository.Entity.csproj", "{D2C4FBFC-2CEF-409C-B8A1-952F234E876C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository", "Simpleverse.Repository\Simpleverse.Repository.csproj", "{D2C4FBFC-2CEF-409C-B8A1-952F234E876C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

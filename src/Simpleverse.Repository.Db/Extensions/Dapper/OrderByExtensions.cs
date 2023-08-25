@@ -1,5 +1,4 @@
 using Dapper;
-using Simpleverse.Repository.Entity;
 
 namespace Simpleverse.Repository.Db.Extensions.Dapper
 {

@@ -55,3 +55,8 @@ jobs:
       with:
           PROJECT_FILE_PATH: ${{env.src-dir}}/Simpleverse.Repository.Db/Simpleverse.Repository.Db.csproj
           NUGET_KEY: ${{secrets.nuget_api_key}}
+    - name: Publish NuGet
+      uses: brandedoutcast/publish-nuget@v2.5.5
+      with:
+          PROJECT_FILE_PATH: ${{env.src-dir}}/Simpleverse.Repository/Simpleverse.Repository.csproj
+          NUGET_KEY: ${{secrets.nuget_api_key}}

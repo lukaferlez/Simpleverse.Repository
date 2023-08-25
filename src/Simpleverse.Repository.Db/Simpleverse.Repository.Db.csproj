@@ -13,15 +13,20 @@
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>Dapper, Bulk, Merge, Upsert, Delete, Insert, Update, Repository</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <Description>High performance operation for MS SQL Server built for Dapper ORM. Including bulk operations Insert, Update, Delete, Get as well as Upsert both single and bulk.</Description>
-    <AssemblyVersion>2.0.1</AssemblyVersion>
-    <FileVersion>2.0.1</FileVersion>
+    <AssemblyVersion>2.0.2</AssemblyVersion>
+    <FileVersion>2.0.2</FileVersion>
     <RepositoryUrl>https://github.com/lukaferlez/Simpleverse.Repository</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
@@ -38,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Simpleverse.Repository.Entity\Simpleverse.Repository.Entity.csproj" />
+    <ProjectReference Include="..\Simpleverse.Repository\Simpleverse.Repository.csproj" />
   </ItemGroup>
 
 </Project>

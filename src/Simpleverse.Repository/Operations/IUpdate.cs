@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Simpleverse.Repository.Entity.Operations
+namespace Simpleverse.Repository.Operations
 {
 	public interface IUpdate<T>
 		where T : class

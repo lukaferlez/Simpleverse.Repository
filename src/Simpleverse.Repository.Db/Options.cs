@@ -1,8 +1,6 @@
-﻿using Simpleverse.Repository.Entity;
-
-namespace Simpleverse.Repository.Db
+﻿namespace Simpleverse.Repository.Db
 {
-	public class Options : Entity.Options
+	public class Options : Repository.Options
 	{
 		private bool _lockForUpdate;
 		public string LockCondition => _lockForUpdate ? "WITH(UPDLOCK)" : string.Empty;

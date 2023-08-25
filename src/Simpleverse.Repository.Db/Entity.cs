@@ -5,10 +5,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Simpleverse.Repository.Entity.Operations;
-using Simpleverse.Repository.Entity;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
+using Simpleverse.Repository.Operations;
 
 namespace Simpleverse.Repository.Db
 {

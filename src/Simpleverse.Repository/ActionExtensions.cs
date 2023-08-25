@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Simpleverse.Repository.Entity
+namespace Simpleverse.Repository
 {
 	public static class ActionExtensions
 	{

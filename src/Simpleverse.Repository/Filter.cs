@@ -1,4 +1,4 @@
-﻿namespace Simpleverse.Repository.Entity
+﻿namespace Simpleverse.Repository
 {
 	public class Filter : IFilter
 	{

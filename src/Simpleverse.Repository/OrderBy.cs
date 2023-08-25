@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Simpleverse.Repository.Entity
+namespace Simpleverse.Repository
 {
 	public class OrderBy
 	{

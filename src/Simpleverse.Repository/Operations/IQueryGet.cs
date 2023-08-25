@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Simpleverse.Repository.Entity.Operations
+namespace Simpleverse.Repository.Operations
 {
 	public interface IQueryGet<TModel, TFilter, TOptions>
 		where TModel : class

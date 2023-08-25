@@ -1,4 +1,4 @@
-﻿namespace Simpleverse.Repository.Entity
+﻿namespace Simpleverse.Repository
 {
 	public interface ISelector
 	{
