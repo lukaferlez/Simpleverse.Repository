@@ -51,19 +51,19 @@ namespace Simpleverse.Repository.Db
 
 		#region Select
 
-		public Template Select(Action<QueryBuilder<T>> builder = null, Options options = null)
+		public Template Select(Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
 			=> Select(this, builder, options);
 
-		public Template Select(string alias, Action<QueryBuilder<T>> builder = null, Options options = null)
+		public Template Select(string alias, Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
 			=> Select(new Table<T>(alias), builder, options);
 
-		public Template Select(Table<T> source, Action<QueryBuilder<T>> builder = null, Options options = null)
+		public Template Select(Table<T> source, Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
 			=> Query(
 				source,
 				templateBuilder =>
 				{
 					builder?.Invoke(templateBuilder);
-					return templateBuilder.SelectTemplate(source, options ?? new Options());
+					return templateBuilder.SelectTemplate(source, options ?? new DbQueryOptions());
 				}
 			);
 

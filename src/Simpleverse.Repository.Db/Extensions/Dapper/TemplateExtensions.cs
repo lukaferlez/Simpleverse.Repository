@@ -7,13 +7,13 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 	{
 		#region Select
 
-		public static SqlBuilder.Template SelectTemplate<T>(this SqlBuilder sqlBuilder, Options options, string tableAlias = null)
+		public static SqlBuilder.Template SelectTemplate<T>(this SqlBuilder sqlBuilder, DbQueryOptions options, string tableAlias = null)
 			=> sqlBuilder.SelectTemplate(DbRepository.TableReference(TypeMeta.Get<T>().TableName, tableAlias), options);
 
-		public static SqlBuilder.Template SelectTemplate<T>(this SqlBuilder sqlBuilder, Table<T> source, Options options)
+		public static SqlBuilder.Template SelectTemplate<T>(this SqlBuilder sqlBuilder, Table<T> source, DbQueryOptions options)
 			=> sqlBuilder.SelectTemplate(source.ToString(), options);
 
-		public static SqlBuilder.Template SelectTemplate(this SqlBuilder sqlBuilder, string tableReference, Options options)
+		public static SqlBuilder.Template SelectTemplate(this SqlBuilder sqlBuilder, string tableReference, DbQueryOptions options)
 		{
 			return sqlBuilder.AddTemplate($@"
 					SELECT {options.TopCondition} /**select**/

@@ -27,7 +27,7 @@ namespace Simpleverse.Repository.Db
 
 		#region Template
 
-		public Template AsSelect(Action<QueryBuilder<TTable>> builder = null, Options options = null)
+		public Template AsSelect(Action<QueryBuilder<TTable>> builder = null, DbQueryOptions options = null)
 		{
 			builder?.Invoke(this);
 			return this.SelectTemplate(Table, options);

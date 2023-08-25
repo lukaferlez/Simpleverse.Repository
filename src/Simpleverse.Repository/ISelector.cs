@@ -2,6 +2,5 @@
 {
 	public interface ISelector
 	{
-		string ToString();
 	}
 }

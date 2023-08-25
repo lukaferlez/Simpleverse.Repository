@@ -1,6 +1,6 @@
 ﻿namespace Simpleverse.Repository.Db
 {
-	public class Options : Repository.Options
+	public class DbQueryOptions : QueryOptions
 	{
 		private bool _lockForUpdate;
 		public string LockCondition => _lockForUpdate ? "WITH(UPDLOCK)" : string.Empty;

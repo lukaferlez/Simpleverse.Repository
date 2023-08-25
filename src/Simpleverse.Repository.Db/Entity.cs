@@ -13,11 +13,11 @@ namespace Simpleverse.Repository.Db
 {
 	public class Entity<TModel, TUpdate, TFilter, TOptions> : Entity<TModel, TFilter, TOptions>, IUpdate<TUpdate, TFilter, TOptions>
 		where TModel : class
-		where TUpdate : class, IFilter, new()
-		where TFilter : class, IFilter, new()
-		where TOptions : Options, new()
+		where TUpdate : class, IQueryFilter, new()
+		where TFilter : class, IQueryFilter, new()
+		where TOptions : DbQueryOptions, new()
 	{
-		public Entity(SqlRepository repository, Table<TModel> source)
+		public Entity(DbRepository repository, Table<TModel> source)
 			: base(repository, source)
 		{
 		}
@@ -55,8 +55,8 @@ namespace Simpleverse.Repository.Db
 	public class Entity<TModel, TFilter, TOptions>
 		: Entity<TModel>, IQueryExist<TFilter>, IQueryGet<TModel, TFilter, TOptions>, IQueryList<TModel, TFilter, TOptions>, IDelete<TModel, TFilter, TOptions>
 		where TModel : class
-		where TFilter : class, IFilter, new()
-		where TOptions : Options, new()
+		where TFilter : class, IQueryFilter, new()
+		where TOptions : DbQueryOptions, new()
 	{
 		public Entity(DbRepository repository, Table<TModel> source)
 			: base(repository, source)
