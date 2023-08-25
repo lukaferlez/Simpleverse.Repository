@@ -10,6 +10,8 @@ jobs:
   build:
 
     runs-on: windows-latest
+    env:
+      src-dir: ./src
 
     steps:
     - uses: actions/checkout@v2
@@ -31,7 +33,10 @@ jobs:
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
     - name: Install dependencies
       run: dotnet restore
+      working-directory: ${{env.src-dir}}
     - name: Build
       run: dotnet build --configuration Release --no-restore
+      working-directory: ${{env.src-dir}}
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+      working-directory: ${{env.src-dir}}

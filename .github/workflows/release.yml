@@ -10,6 +10,8 @@ jobs:
   build:
 
     runs-on: windows-latest
+    env:
+      src-dir: ./src
 
     steps:
     - uses: actions/checkout@v2
@@ -31,10 +33,13 @@ jobs:
           sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
     - name: Install dependencies
       run: dotnet restore
+      working-directory: ${{env.src-dir}}
     - name: Build
       run: dotnet build --configuration Release --no-restore
+      working-directory: ${{env.src-dir}}
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+      working-directory: ${{env.src-dir}}
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -48,5 +53,5 @@ jobs:
     - name: Publish NuGet
       uses: brandedoutcast/publish-nuget@v2.5.5
       with:
-          PROJECT_FILE_PATH: Simpleverse.Dapper/Simpleverse.Dapper.csproj
+          PROJECT_FILE_PATH: ${{env.src-dir}}/Simpleverse.Repository.Db/Simpleverse.Repository.Db.csproj
           NUGET_KEY: ${{secrets.nuget_api_key}}
