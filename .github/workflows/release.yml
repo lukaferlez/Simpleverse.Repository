@@ -50,6 +50,9 @@ jobs:
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
-    - name: Publish Nuget
+    - name: Publish Package
       run: dotnet nuget push "**/*.nupkg" --api-key ${{secrets.nuget_api_key}} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      working-directory: ${{env.src-dir}}
+    - name: Publish Symbols
+      run: dotnet nuget push "**/*.snupkg" --api-key ${{secrets.nuget_api_key}} --source https://api.nuget.org/v3/index.json --skip-duplicate
       working-directory: ${{env.src-dir}}
