@@ -3,23 +3,23 @@ using System.Linq;
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.Extensions;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
     [Collection("SqlServerCollection")]
-	public class DeleteTests : IClassFixture<DatabaseFixture>
+	public class DeleteTests : TestFixture
 	{
-		DatabaseFixture fixture;
-
-		public DeleteTests(DatabaseFixture fixture)
+		public DeleteTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Fact]
 		public void DeleteAsyncTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();

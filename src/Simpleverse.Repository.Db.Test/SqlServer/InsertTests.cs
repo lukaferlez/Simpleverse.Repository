@@ -7,24 +7,24 @@ using System.Data;
 using System.Collections;
 using Dapper;
 using Simpleverse.Repository.Db.SqlServer;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class InsertTests : IClassFixture<DatabaseFixture>
+	public class InsertTests : TestFixture
 	{
-		DatabaseFixture fixture;
-
-		public InsertTests(DatabaseFixture fixture)
+		public InsertTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Theory]
 		[ClassData(typeof(InsertTestData))]
 		public void InsertAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : class
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetConnection())
 			{
 				Arange<T>(connection);
 
@@ -38,7 +38,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		[ClassData(typeof(InsertTestData))]
 		public void InsertTransactionAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : class
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetConnection())
 			{
 				Arange<T>(connection);
 

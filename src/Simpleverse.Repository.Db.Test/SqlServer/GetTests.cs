@@ -3,23 +3,24 @@ using System.Linq;
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.Extensions;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
     [Collection("SqlServerCollection")]
-	public class GetTests : IClassFixture<DatabaseFixture>
+	public class GetTests : TestFixture
 	{
-		DatabaseFixture fixture;
-
-		public GetTests(DatabaseFixture fixture)
+		public GetTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Fact]
 		public void GetAsyncTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();

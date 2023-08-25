@@ -1,14 +1,17 @@
 ﻿using System;
+using System.Data.Common;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using StackExchange.Profiling;
+using StackExchange.Profiling.Data;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	public class DatabaseFixture : IDisposable
 	{
-		private static string ConnectionString = "Server=(localdb)\\mssqllocaldb;Database=tempdb;Trusted_Connection=True;MultipleActiveResultSets=true;";
+		private readonly string _connectionString = "Server=(localdb)\\mssqllocaldb;Database=tempdb;Trusted_Connection=True;MultipleActiveResultSets=true;";
 
-		public SqlConnection GetConnection() => new SqlConnection(ConnectionString);
+		public DbConnection GetConnection() => new ProfiledDbConnection(new SqlConnection(_connectionString), MiniProfiler.Current);
 
 		private static string DropTable(string name) => $"IF OBJECT_ID('{name}', 'U') IS NOT NULL DROP TABLE {name};";
 		private static string DropSchema(string name) => $"IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'{name}') DROP SCHEMA {name}";
@@ -25,7 +28,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 		public void SetupDb()
 		{
-			using (var connection = new SqlConnection(ConnectionString))
+			using (var connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
 
@@ -112,7 +115,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 		public void TearDownDb()
 		{
-			using (var connection = new SqlConnection(ConnectionString))
+			using (var connection = new SqlConnection(_connectionString))
 			{
 				connection.Open();
 				connection.Execute($@"{DropTable("[Identity]")}");

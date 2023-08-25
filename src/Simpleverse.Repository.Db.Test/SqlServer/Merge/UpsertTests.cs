@@ -4,23 +4,23 @@ using Dapper.Contrib.Extensions;
 using System;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Db.Extensions;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 {
     [Collection("SqlServerCollection")]
-	public class UpsertTests : IClassFixture<DatabaseFixture>
+	public class UpsertTests : TestFixture
 	{
-		DatabaseFixture fixture;
-
-		public UpsertTests(DatabaseFixture fixture)
+		public UpsertTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Fact]
 		public void UpsertAsyncExplicitKeyTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -46,7 +46,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertAsyncIdentityTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -72,7 +73,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertAsyncWriteAttributeTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -100,7 +102,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertAsyncComputedAttributeTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -129,7 +132,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertBulkAsyncExplicitTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -162,7 +166,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertBulkAsyncIdentityTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -195,7 +200,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact]
 		public void UpsertBulkAsyncWriteAttributeTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -231,7 +237,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		[Fact(Skip = "Doesn't work without key properties")]
 		public void UpsertBulkAsyncComputedAttributeTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
@@ -262,6 +269,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 					Assert.Equal(5, updatedRecord.Value);
 					Assert.Equal(new DateTime(2022, 05, 02), updatedRecord.ValueDate);
 				}
+				
 			}
 		}
 	}

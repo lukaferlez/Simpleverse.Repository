@@ -7,24 +7,25 @@ using System.Data;
 using System.Collections;
 using Dapper;
 using Simpleverse.Repository.Db.SqlServer;
+using Xunit.Abstractions;
+using StackExchange.Profiling;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class UpdateTests : IClassFixture<DatabaseFixture>
+	public class UpdateTests : TestFixture
 	{
-		DatabaseFixture fixture;
-
-		public UpdateTests(DatabaseFixture fixture)
+		public UpdateTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Theory]
 		[ClassData(typeof(UpdateTestData))]
 		public void UpdateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetConnection())
 			{
 				Arange<T>(connection);
 
@@ -45,7 +46,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		[ClassData(typeof(UpdateTestData))]
 		public void UpdateTransactionAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetConnection())
 			{
 				Arange<T>(connection);
 
@@ -70,7 +72,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		[ClassData(typeof(UpdateDuplicateTestData))]
 		public void UpdateDuplicateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetConnection())
 			{
 				Arange<T>(connection);
 
@@ -91,8 +94,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		private void Arange<T>(IDbConnection connection) where T : class
 		{
 			connection.Open();
-			fixture.TearDownDb();
-			fixture.SetupDb();
+			_fixture.TearDownDb();
+			_fixture.SetupDb();
 		}
 
 		private void Assert<T>(IDbConnection connection, IEnumerable<T> records, Action<T, T> check, int expected, int updated) where T : Identity

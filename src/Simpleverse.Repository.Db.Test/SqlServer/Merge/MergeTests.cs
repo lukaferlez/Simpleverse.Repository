@@ -3,23 +3,23 @@ using System.Linq;
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Db.Extensions;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 {
     [Collection("SqlServerCollection")]
-	public class MergeTests : IClassFixture<DatabaseFixture>
+	public class MergeTests : TestFixture
 	{
-		readonly DatabaseFixture fixture;
-
-		public MergeTests(DatabaseFixture fixture)
+		public MergeTests(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(fixture, output)
 		{
-			this.fixture = fixture;
 		}
 
 		[Fact]
 		public void UpsertAsyncExplicitKeyTest()
 		{
-			using (var connection = fixture.GetConnection())
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
 			{
 				// arange
 				connection.Open();
