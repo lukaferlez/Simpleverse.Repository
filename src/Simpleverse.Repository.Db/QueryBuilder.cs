@@ -491,6 +491,12 @@ namespace Simpleverse.Repository.Db
 			return this;
 		}
 
+		public QueryBuilder<TTable> Set<T>(Expression<Func<TTable, int>> column, T value) where T : struct, Enum
+		{
+			this.Set(Table.Column(column), value);
+			return this;
+		}
+
 		public QueryBuilder<TTable> Set<T>(Expression<Func<TTable, int>> column, T? value) where T : struct, Enum
 		{
 			this.Set(Table.Column(column), value);

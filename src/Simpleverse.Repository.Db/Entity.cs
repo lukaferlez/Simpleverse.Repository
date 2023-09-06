@@ -48,7 +48,8 @@ namespace Simpleverse.Repository.Db
 
 		protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
 		{
-
+			if (update is UpdateOptions<TModel> updateOptions)
+				updateOptions.Apply(builder);
 		}
 	}
 
