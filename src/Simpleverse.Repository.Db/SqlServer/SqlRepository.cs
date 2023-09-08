@@ -14,8 +14,14 @@ namespace Simpleverse.Repository.Db.SqlServer
 		}
 
 		public SqlRepository(string connectionString)
-			: base(() => new SqlConnection(connectionString))
+			: this(() => new SqlConnection(connectionString))
 		{
+		}
+
+		public SqlRepository(Func<SqlConnection> connectionFactory)
+			: base(connectionFactory)
+		{
+
 		}
 
 		public async Task<R> ExecuteWithAppLockAsync<R>(string resourceIdentifier, Func<DbConnection, DbTransaction, Task<R>> function)

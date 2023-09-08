@@ -252,7 +252,7 @@ namespace Simpleverse.Repository.Db
 					if (Repository is SqlRepository)
 						return conn.UpsertAsync(model, transaction: tran);
 
-					throw new NotSupportedException("Upsert is not supported on non-SQL server connections.");
+					throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 				}
 			);
 		}
@@ -264,7 +264,7 @@ namespace Simpleverse.Repository.Db
 					if (Repository is SqlRepository)
 						return conn.UpsertBulkAsync(models, transaction: tran);
 
-					throw new NotSupportedException("Upsert is not supported on non-SQL server connections.");
+					throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 				}
 			);
 		}
