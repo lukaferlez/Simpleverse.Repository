@@ -9,7 +9,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 	public class SqlRepository : DbRepository
 	{
 		public SqlRepository(IConfiguration configuration, string connectionStringName)
-			: base(() => new SqlConnection(configuration.GetConnectionString(connectionStringName)))
+			: this(configuration.GetConnectionString(connectionStringName))
+		{
+		}
+
+		public SqlRepository(string connectionString)
+			: base(() => new SqlConnection(connectionString))
 		{
 		}
 
