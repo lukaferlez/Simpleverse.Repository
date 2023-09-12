@@ -467,6 +467,14 @@ namespace Simpleverse.Repository.Db
 			return this;
 		}
 
+		public QueryBuilder<TTable> Where<T>(
+			Func<Func<Expression<Func<TTable, object>>, Selector>, string> selectorBuilder
+		)
+		{
+			Where(selectorBuilder((column) => Table.Column(column)));
+			return this;
+		}
+
 		#endregion
 
 		#endregion
