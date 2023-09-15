@@ -3,12 +3,11 @@ using System.Linq;
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.Extensions;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
-    [Collection("SqlServerCollection")]
+	[Collection("SqlServerCollection")]
 	public class GetTests : TestFixture
 	{
 		public GetTests(DatabaseFixture fixture, ITestOutputHelper output)

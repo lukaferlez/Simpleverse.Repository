@@ -34,6 +34,9 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 		public static SqlBuilder WhereBetween<T, TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, T>> column, T? valueFrom, T? valueTo) where T : struct
 			=> sqlBuilder.WhereBetween(table.Column(column), valueFrom, valueTo);
 
+		public static SqlBuilder WhereBetween<T, TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, T?>> column, T? valueFrom, T? valueTo) where T : struct
+			=> sqlBuilder.WhereBetween(table.Column(column), valueFrom, valueTo);
+
 		public static SqlBuilder WhereBetween<T>(this SqlBuilder sqlBuilder, Selector column, T? valueFrom, T? valueTo) where T : struct
 		{
 			if (valueFrom.HasValue)

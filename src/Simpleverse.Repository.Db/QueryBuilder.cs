@@ -258,7 +258,13 @@ namespace Simpleverse.Repository.Db
 
 		public QueryBuilder<TTable> WhereBetween<T>(Expression<Func<TTable, T>> column, T? valueFrom, T? valueTo) where T : struct
 		{
-			this.WhereBetween(Table.Column(column), valueFrom, valueTo);
+			this.WhereBetween(Table, column, valueFrom, valueTo);
+			return this;
+		}
+
+		public QueryBuilder<TTable> WhereBetween<T>(Expression<Func<TTable, T?>> column, T? valueFrom, T? valueTo) where T : struct
+		{
+			this.WhereBetween(Table, column, valueFrom, valueTo);
 			return this;
 		}
 
