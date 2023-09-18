@@ -1,10 +1,13 @@
 ﻿using Dapper;
 using EnumsNET;
+using Microsoft.Identity.Client;
+using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Security.Cryptography;
 
 namespace Simpleverse.Repository.Db.Extensions.Dapper
 {
@@ -211,8 +214,14 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 
 		#region Enum
 
+		public static SqlBuilder Where<T>(this SqlBuilder sqlBuilder, string name, T value, string alias) where T : struct, Enum
+			=> sqlBuilder.Where(new Selector(name, alias), value);
+
 		public static SqlBuilder Where<T>(this SqlBuilder sqlBuilder, string name, T? value, string alias) where T : struct, Enum
 			=> sqlBuilder.Where(new Selector(name, alias), value);
+
+		public static SqlBuilder Where<T, TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, T>> column, T value) where T : struct, Enum
+			=> sqlBuilder.Where(table.Column(column), value);
 
 		public static SqlBuilder Where<T, TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, T>> column, T? value) where T : struct, Enum
 			=> sqlBuilder.Where(table.Column(column), value);
@@ -222,21 +231,37 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 			if (!value.HasValue)
 				return sqlBuilder;
 
+			return sqlBuilder.Where(column, value.Value);
+		}
+
+		public static SqlBuilder Where<T>(this SqlBuilder sqlBuilder, Selector column, T value) where T : struct, Enum
+		{
 			if (typeof(T).IsDefined(typeof(FlagsAttribute), false))
 			{
-				var flags = value.Value.GetFlags();
+				var flags = value.GetFlags();
+				
+				var elements = flags.Select(
+					(flag, index) => {
+						var parameterName = DbRepository.ParameterName($"{column.Column}_{index+1}", alias: column.TableAlias);
 
-				for (var iCount = 0; iCount < flags.Count(); iCount++)
-				{
-					var parameters = new DynamicParameters();
+						return new
+						{
+							Condition = $"{column} & @{parameterName} <> 0",
+							ParameterName = parameterName,
+							Value = flag
+						};
+					}
+				);
 
-					parameters.Add($"@{column.Column}{iCount}", flags.ElementAt(iCount));
-					sqlBuilder.OrWhere($"{column} & @{column.Column}{iCount} <> 0", parameters);
-				}
+				var parameters = new DynamicParameters();
+				elements.ForEach(x => parameters.Add(x.ParameterName, x.Value));
+				var joinedConditions = string.Join(" OR ", elements.Select(x => x.Condition));
+
+				sqlBuilder.Where($"({joinedConditions})", parameters);
 			}
 			else
 			{
-				sqlBuilder.WhereInternal(column, value.Value);
+				sqlBuilder.WhereInternal(column, value);
 			}
 
 			return sqlBuilder;

@@ -154,6 +154,14 @@ namespace Simpleverse.Repository.Db.Test
 		Even = 2
 	}
 
+	[Flags]
+	public enum EnumFlags
+	{
+		Odd = 1,
+		Even = 2,
+		None = 4
+	}
+
 	[Table("[DataType]")]
 	public class DataType : Identity
 	{
