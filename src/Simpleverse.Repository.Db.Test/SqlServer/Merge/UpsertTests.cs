@@ -2,6 +2,7 @@
 using System.Linq;
 using Dapper.Contrib.Extensions;
 using System;
+using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Db.Extensions;
 using Xunit.Abstractions;
@@ -198,6 +199,41 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		}
 
 		[Fact]
+		public void UpsertBulkAsyncIdentityWithMapGeneratedValuesTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				var records = TestData.IdentityWithoutIdData(10);
+				var recordsToInsert = records.Take(9);
+
+				var inserted = connection.InsertBulkAsync(recordsToInsert, mapGeneratedValues: true).Result;
+				foreach (var record in recordsToInsert.Skip(1))
+				{
+					record.Name = (record.Id + 2).ToString();
+				}
+
+				// act
+				var updated = connection.UpsertBulkAsync(records.Skip(1), mapGeneratedValues: true).Result;
+
+				// assert
+				var updatedRecords = connection.GetAll<Identity>();
+				Assert.Equal(9, updated);
+				Assert.Equal("1", updatedRecords.First(x => x.Id == 1).Name);
+				for (var i = 0; i < records.Count(); i++)
+				{
+					var record = records.ElementAt(i);
+					var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
+					Assert.NotNull(updatedRecord);
+					Assert.Equal(record.Name, updatedRecord.Name);
+				}
+			}
+		}
+
+		[Fact]
 		public void UpsertBulkAsyncWriteAttributeTest()
 		{
 			using (var profiler = Profile())
@@ -234,7 +270,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 			}
 		}
 
-		[Fact(Skip = "Doesn't work without key properties")]
+		[Fact]
 		public void UpsertBulkAsyncComputedAttributeTest()
 		{
 			using (var profiler = Profile())
@@ -244,7 +280,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				connection.Open();
 				connection.Truncate<Computed>();
 				var records = TestData.ComputedData(10);
-				var inserted = connection.Insert(records);
+				var inserted = connection.InsertBulkAsync(records, mapGeneratedValues: true).Result;
 				records = records.Skip(1);
 				foreach (var record in records)
 				{
@@ -254,7 +290,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				}
 
 				// act
-				var updated = connection.UpsertAsync(records).Result;
+				var updated = connection.UpsertBulkAsync(records).Result;
 
 				// assert
 				var updatedRecords = connection.GetAll<Computed>();
@@ -270,6 +306,47 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 					Assert.Equal(new DateTime(2022, 05, 02), updatedRecord.ValueDate);
 				}
 				
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncComputedWithMapGeneratedValuesAttributeTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Computed>();
+				var records = TestData.ComputedData(10);
+
+				var recordsToInsert = records.Take(9);
+				var inserted = connection.InsertBulkAsync(recordsToInsert, mapGeneratedValues: true).Result;
+
+				foreach (var record in recordsToInsert.Skip(1))
+				{
+					record.Name = (record.Id + 2).ToString();
+					record.Value = record.Value + 2;
+					record.ValueDate = record.ValueDate.AddDays(30);
+				}
+
+				// act
+				var updated = connection.UpsertBulkAsync(records.Skip(1), mapGeneratedValues: true).Result;
+
+				// assert
+				var updatedRecords = connection.GetAll<Computed>();
+				Assert.Equal(9, updated);
+				Assert.Equal("1", updatedRecords.First(x => x.Id == 1).Name);
+				for (var i = 0; i < records.Count(); i++)
+				{
+					var record = records.ElementAt(i);
+					var updatedRecord = updatedRecords.FirstOrDefault(x => x.Id == record.Id);
+					Assert.NotNull(updatedRecord);
+					Assert.Equal(record.Name, updatedRecord.Name);
+					Assert.Equal(5, updatedRecord.Value);
+					Assert.Equal(new DateTime(2022, 05, 02), updatedRecord.ValueDate);
+				}
+
 			}
 		}
 	}

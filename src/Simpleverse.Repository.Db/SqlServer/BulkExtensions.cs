@@ -431,7 +431,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return "OUTPUT " + keyColumns;
 		}
 
-		private static void MapGeneratedValues<T>(
+		public static void MapGeneratedValues<T>(
 			IEnumerable<T> entities,
 			IEnumerable<dynamic> results,
 			IEnumerable<PropertyInfo> matchProperties,

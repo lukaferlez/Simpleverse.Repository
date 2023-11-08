@@ -19,7 +19,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			T entitiesToUpsert,
 			DbTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<MergeKeyOptions> key = null
+			Action<MergeKeyOptions> key = null,
+			bool mapGeneratedValues = false
 		)
 			where T : class
 		{
@@ -27,7 +28,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				new[] { entitiesToUpsert },
 				transaction: transaction,
 				commandTimeout: commandTimeout,
-				key: key
+				key: key,
+				mapGeneratedValues: mapGeneratedValues
 			);
 		}
 
@@ -39,7 +41,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeKeyOptions> key = null,
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
-			Action<MergeActionOptions<T>> notMatchedBySource = null
+			Action<MergeActionOptions<T>> notMatchedBySource = null,
+			bool mapGeneratedValues = false
 		)
 			where T : class
 		{
@@ -50,7 +53,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				key: key,
 				matched: matched,
 				notMatchedByTarget: notMatchedByTarget,
-				notMatchedBySource: notMatchedBySource
+				notMatchedBySource: notMatchedBySource,
+				mapGeneratedValues: mapGeneratedValues
 			);
 		}
 
@@ -69,7 +73,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			DbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<MergeKeyOptions> key = null
+			Action<MergeKeyOptions> key = null,
+			bool mapGeneratedValues = false
 		) where T : class
 		{
 			return await connection.MergeBulkAsync(
@@ -79,7 +84,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				sqlBulkCopy: sqlBulkCopy,
 				key: key,
 				matched: options => options.Update(),
-				notMatchedByTarget: options => options.Insert()
+				notMatchedByTarget: options => options.Insert(),
+				mapGeneratedValues: mapGeneratedValues
 			);
 		}
 
@@ -101,7 +107,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeKeyOptions> key = null,
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
-			Action<MergeActionOptions<T>> notMatchedBySource = null
+			Action<MergeActionOptions<T>> notMatchedBySource = null,
+			bool mapGeneratedValues = false
 		) where T : class
 		{
 			if (entitiesToMerge == null)
@@ -115,6 +122,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0 && key == null)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
+			var propertiesKeyAndComputed = typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed);
+
+			var outputValues = new List<dynamic>();
 			var result = await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
@@ -130,14 +140,50 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 					MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 					MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 					MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
-					//MergeOutputFormat(typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed).ToList(), sb);
+					if (mapGeneratedValues)
+						MergeOutputFormat(sb);
+
 					sb.Append(";");
 
-					return await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					var query = sb.ToString();
+
+					// return await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					
+					if (mapGeneratedValues)
+					{
+						var results = await connection.QueryAsync(
+							query,
+							param: parameters,
+							commandTimeout: commandTimeout,
+							transaction: transaction
+						);
+						outputValues.AddRange(results);
+						return results.Count();
+					}
+					else
+					{
+						return await connection.ExecuteAsync(
+							query,
+							param: parameters,
+							commandTimeout: commandTimeout,
+							transaction: transaction
+						);
+					}
+
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
 			);
+
+			if (mapGeneratedValues)
+				BulkExtensions.MapGeneratedValues(
+					entitiesToMerge,
+					outputValues,
+					typeMeta.PropertiesExceptKeyAndComputed,
+					propertiesKeyAndComputed,
+					true
+				);
+
 			return result;
 		}
 
@@ -182,13 +228,10 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			options.Format(sb);
 		}
 
-		private static void MergeOutputFormat(IEnumerable<PropertyInfo> properties, StringBuilder sb)
+		private static void MergeOutputFormat(StringBuilder sb)
 		{
-			if (properties.Any())
-			{
-				sb.AppendFormat("OUTPUT {0}", properties.ColumnList("Inserted"));
-				sb.AppendLine();
-			}
+			sb.AppendFormat("OUTPUT inserted.*");
+			sb.AppendLine();
 		}
 	}
 }
