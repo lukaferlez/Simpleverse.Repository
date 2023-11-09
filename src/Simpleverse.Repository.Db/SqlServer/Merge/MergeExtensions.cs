@@ -20,7 +20,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			DbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
 			where T : class
 		{
@@ -29,7 +29,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				transaction: transaction,
 				commandTimeout: commandTimeout,
 				key: key,
-				mapGeneratedValues: mapGeneratedValues
+				outputMap: outputMap
 			);
 		}
 
@@ -42,7 +42,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
 			Action<MergeActionOptions<T>> notMatchedBySource = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
 			where T : class
 		{
@@ -54,7 +54,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				matched: matched,
 				notMatchedByTarget: notMatchedByTarget,
 				notMatchedBySource: notMatchedBySource,
-				mapGeneratedValues: mapGeneratedValues
+				outputMap: outputMap
 			);
 		}
 
@@ -74,7 +74,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		) where T : class
 		{
 			return await connection.MergeBulkAsync(
@@ -85,7 +85,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				key: key,
 				matched: options => options.Update(),
 				notMatchedByTarget: options => options.Insert(),
-				mapGeneratedValues: mapGeneratedValues
+				outputMap: outputMap
 			);
 		}
 
@@ -108,7 +108,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
 			Action<MergeActionOptions<T>> notMatchedBySource = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		) where T : class
 		{
 			if (entitiesToMerge == null)
@@ -118,13 +118,12 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			if (entityCount == 0)
 				return 0;
 
+			var mapGeneratedValues = outputMap != null;
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0 && key == null)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var propertiesKeyAndComputed = typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed);
-
-			var outputValues = new List<dynamic>();
+			var outputValues = new List<T>();
 			var result = await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
@@ -147,11 +146,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 
 					var query = sb.ToString();
 
-					// return await connection.ExecuteAsync(sb.ToString(), param: parameters, commandTimeout: commandTimeout, transaction: transaction);
-					
 					if (mapGeneratedValues)
 					{
-						var results = await connection.QueryAsync(
+						var results = await connection.QueryAsync<T>(
 							query,
 							param: parameters,
 							commandTimeout: commandTimeout,
@@ -176,12 +173,11 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			);
 
 			if (mapGeneratedValues)
-				BulkExtensions.MapGeneratedValues(
+				outputMap(
 					entitiesToMerge,
 					outputValues,
 					typeMeta.PropertiesExceptKeyAndComputed,
-					propertiesKeyAndComputed,
-					true
+					typeMeta.PropertiesKeyAndComputed
 				);
 
 			return result;

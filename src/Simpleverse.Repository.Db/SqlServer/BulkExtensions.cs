@@ -11,6 +11,9 @@ using System.Dynamic;
 using Simpleverse.Repository.Db.Meta;
 using Simpleverse.Repository.Db.SqlServer;
 using System.Data.Common;
+using Simpleverse.Repository.Db.SqlServer.Merge;
+using Microsoft.Extensions.Logging;
+using System.IO.MemoryMappedFiles;
 
 namespace Simpleverse.Repository.Db.SqlServer
 {
@@ -217,6 +220,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 		/// <param name="entitiesToInsert">Entity to insert, can be list of entities</param>
 		/// <param name="transaction">The transaction to run under, null (the default) if none</param>
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+		/// <param name="outputMap"></param>
 		/// <returns>Identity of inserted entity, or number of inserted rows if inserting a list</returns>
 		public async static Task<int> InsertBulkAsync<T>(
 			this DbConnection connection,
@@ -224,18 +228,17 @@ namespace Simpleverse.Repository.Db.SqlServer
 			DbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		) where T : class
 		{
 			var entityCount = entitiesToInsert.Count();
 			if (entityCount == 0)
 				return 0;
 
+			var mapGeneratedValues = outputMap != null;
 			var typeMeta = TypeMeta.Get<T>();
 
-			var propertiesKeyAndComputed = typeMeta.PropertiesKey.Union(typeMeta.PropertiesComputed);
-
-			var outputValues = new List<dynamic>();
+			var outputEntities = new List<T>();
 			var result =
 				await connection.ExecuteAsync(
 					entitiesToInsert,
@@ -252,13 +255,13 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 						if (mapGeneratedValues)
 						{
-							var results = await connection.QueryAsync(
+							var results = await connection.QueryAsync<T>(
 								query,
 								param: parameters,
 								commandTimeout: commandTimeout,
 								transaction: transaction
 							);
-							outputValues.AddRange(results);
+							outputEntities.AddRange(results);
 							return results.Count();
 						}
 						else
@@ -277,12 +280,11 @@ namespace Simpleverse.Repository.Db.SqlServer
 			;
 
 			if (mapGeneratedValues)
-				MapGeneratedValues(
+				outputMap(
 					entitiesToInsert,
-					outputValues,
+					outputEntities,
 					typeMeta.PropertiesExceptKeyAndComputed,
-					propertiesKeyAndComputed,
-					true
+					typeMeta.PropertiesKeyAndComputed
 				);
 
 			return result;
@@ -303,7 +305,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			DbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			bool mapGeneratedValues = false
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		) where T : class
 		{
 			entitiesToUpdate = entitiesToUpdate.Where(x => x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty || !(x is SqlMapperExtensions.IProxy));
@@ -312,11 +314,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (entityCount == 0)
 				return 0;
 
+			var mapGeneratedValues = outputMap != null;
 			var typeMeta = TypeMeta.Get<T>();
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var outputValues = new List<dynamic>();
+			var outputValues = new List<T>();
 			var result =
 				await connection.ExecuteAsync(
 					entitiesToUpdate,
@@ -336,7 +339,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 						if (mapGeneratedValues)
 						{
-							var results = await connection.QueryAsync(
+							var results = await connection.QueryAsync<T>(
 								query,
 								param: parameters,
 								commandTimeout: commandTimeout,
@@ -362,12 +365,11 @@ namespace Simpleverse.Repository.Db.SqlServer
 			;
 
 			if (mapGeneratedValues)
-				MapGeneratedValues(
+				outputMap(
 					entitiesToUpdate,
 					outputValues,
 					typeMeta.PropertiesKeyAndExplicit,
-					typeMeta.PropertiesComputed,
-					false
+					typeMeta.PropertiesComputed
 				);
 
 			return result;
@@ -429,90 +431,6 @@ namespace Simpleverse.Repository.Db.SqlServer
 				return "OUTPUT inserted.*";
 
 			return "OUTPUT " + keyColumns;
-		}
-
-		public static void MapGeneratedValues<T>(
-			IEnumerable<T> entities,
-			IEnumerable<dynamic> results,
-			IEnumerable<PropertyInfo> matchProperties,
-			IEnumerable<PropertyInfo> propertiesToMap,
-			bool mapResultOnce)
-		{
-			if (results == null || !results.Any())
-				return;
-
-			var entitiesWithMapping = entities
-				.Select(x =>
-				{
-					dynamic entity = new ExpandoObject();
-					entity.Entity = x;
-					entity.Mapped = false;
-					return entity;
-				}
-				)
-				.ToList();
-
-			foreach (IDictionary<string, object> result in results)
-			{
-				if (!result.Any())
-					continue;
-
-				for (var iCount = 0; iCount < entitiesWithMapping.Count; iCount++)
-				{
-					var entity = entitiesWithMapping[iCount];
-					if (entity.Mapped)
-						continue;
-
-					var found = true;
-					foreach (var property in matchProperties)
-					{
-						var entityValue = (object)property.GetValue(entity.Entity);
-						var resultValue = result[property.Name];
-
-						if (!IsEqual(entityValue, resultValue))
-						{
-							found = false;
-							break;
-						}
-					}
-
-					if (found)
-					{
-						foreach (var keyProperty in propertiesToMap)
-						{
-							keyProperty.SetValue(entity.Entity, result[keyProperty.Name]);
-						}
-						entity.Mapped = true;
-
-						if (mapResultOnce)
-							break;
-					}
-				}
-			}
-		}
-
-		private static bool IsEqual(object entityValue, object resultValue)
-		{
-			if (entityValue == null && resultValue == null)
-				return true;
-
-			if (entityValue != null && entityValue.Equals(resultValue))
-				return true;
-
-			if (resultValue != null && resultValue.Equals(entityValue))
-				return true;
-
-			if (entityValue != null && resultValue != null)
-			{
-				var type = entityValue.GetType();
-				if (type.IsEnum && Enum.IsDefined(type, resultValue))
-					return true;
-
-				if (entityValue is DateTime && resultValue is DateTime)
-					return true;
-			}
-
-			return false;
 		}
 
 		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(

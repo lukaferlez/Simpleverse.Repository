@@ -28,7 +28,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 			{
 				Arange<T>(connection);
 
-				var inserted = connection.InsertBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
+				var inserted = connection.InsertBulkAsync(records, outputMap: OutputMapper.MapOnce).Result;
 
 				Assert<T>(connection, records, check, expected, inserted);
 			}
@@ -46,7 +46,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 				var inserted = 0;
 				using (var transaction = connection.BeginTransaction())
 				{
-					inserted = connection.InsertBulkAsync(records, transaction: transaction, mapGeneratedValues: mapGeneratedValues).Result;
+					inserted = connection.InsertBulkAsync(records, transaction: transaction, outputMap: OutputMapper.MapOnce).Result;
 					transaction.Commit();
 				}
 

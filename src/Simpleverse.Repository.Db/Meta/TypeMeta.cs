@@ -14,6 +14,7 @@ namespace Simpleverse.Repository.Db.Meta
 		public IList<PropertyInfo> Properties { get; }
 		public IList<PropertyInfo> PropertiesKey { get; }
 		public IList<PropertyInfo> PropertiesComputed { get; }
+		public IList<PropertyInfo> PropertiesKeyAndComputed { get; }
 		public IList<PropertyInfo> PropertiesExplicit { get; }
 		public IList<PropertyInfo> PropertiesExceptKeyAndComputed { get; }
 		public IList<PropertyInfo> PropertiesExceptKeyComputedAndExplicit { get; }
@@ -26,9 +27,10 @@ namespace Simpleverse.Repository.Db.Meta
 			Properties = SqlMapperWrapper.TypePropertiesCache(type);
 			PropertiesKey = SqlMapperWrapper.KeyPropertiesCache(type);
 			PropertiesComputed = SqlMapperWrapper.ComputedPropertiesCache(type);
+			PropertiesKeyAndComputed = PropertiesKey.Union(PropertiesComputed).ToList();
 			PropertiesExplicit = SqlMapperWrapper.ExplicitKeyPropertiesCache(type);
 			PropertiesExceptComputed = Properties.Except(PropertiesComputed).ToList();
-			PropertiesExceptKeyAndComputed = PropertiesExceptComputed.Except(PropertiesKey).ToList();
+			PropertiesExceptKeyAndComputed = Properties.Except(PropertiesKeyAndComputed).ToList();
 			PropertiesExceptKeyComputedAndExplicit = PropertiesExceptKeyAndComputed.Except(PropertiesExplicit).ToList();
 			PropertiesKeyAndExplicit = PropertiesExplicit.Union(PropertiesKey).ToList();
 		}

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Operations;
+using System.Reflection;
 
 namespace Simpleverse.Repository.Db
 {
@@ -203,7 +204,10 @@ namespace Simpleverse.Repository.Db
 		{
 			return await Repository.ExecuteAsync((conn, tran) => conn.InsertAsync(model, transaction: tran));
 		}
-		public virtual async Task<int> AddAsync(IEnumerable<T> models, bool mapGeneratedValues = false)
+		public virtual async Task<int> AddAsync(
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) =>
@@ -213,7 +217,7 @@ namespace Simpleverse.Repository.Db
 						return conn.InsertBulkAsync(
 							models,
 							transaction: tran,
-							mapGeneratedValues: mapGeneratedValues
+							outputMap: outputMap
 						);
 					}
 
@@ -225,7 +229,10 @@ namespace Simpleverse.Repository.Db
 		{
 			return await Repository.ExecuteAsync((conn, tran) => conn.UpdateAsync(model, transaction: tran));
 		}
-		public virtual async Task<int> UpdateAsync(IEnumerable<T> models, bool mapGeneratedValues = false)
+		public virtual async Task<int> UpdateAsync(
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				async (conn, tran) =>
@@ -235,7 +242,7 @@ namespace Simpleverse.Repository.Db
 						return await conn.UpdateBulkAsync(
 							models,
 							transaction: tran,
-							mapGeneratedValues: mapGeneratedValues
+							outputMap: outputMap
 						);
 					}
 
@@ -256,13 +263,16 @@ namespace Simpleverse.Repository.Db
 				}
 			);
 		}
-		public virtual async Task<int> UpsertAsync(IEnumerable<T> models)
+		public virtual async Task<int> UpsertAsync(
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) =>
 				{
 					if (Repository is SqlRepository)
-						return conn.UpsertBulkAsync(models, transaction: tran);
+						return conn.UpsertBulkAsync(models, transaction: tran, outputMap: outputMap);
 
 					throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 				}

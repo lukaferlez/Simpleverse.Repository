@@ -210,14 +210,14 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				var records = TestData.IdentityWithoutIdData(10);
 				var recordsToInsert = records.Take(9);
 
-				var inserted = connection.InsertBulkAsync(recordsToInsert, mapGeneratedValues: true).Result;
+				var inserted = connection.InsertBulkAsync(recordsToInsert, outputMap: OutputMapper.MapOnce).Result;
 				foreach (var record in recordsToInsert.Skip(1))
 				{
 					record.Name = (record.Id + 2).ToString();
 				}
 
 				// act
-				var updated = connection.UpsertBulkAsync(records.Skip(1), mapGeneratedValues: true).Result;
+				var updated = connection.UpsertBulkAsync(records.Skip(1), outputMap: OutputMapper.Map).Result;
 
 				// assert
 				var updatedRecords = connection.GetAll<Identity>();
@@ -280,7 +280,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				connection.Open();
 				connection.Truncate<Computed>();
 				var records = TestData.ComputedData(10);
-				var inserted = connection.InsertBulkAsync(records, mapGeneratedValues: true).Result;
+				var inserted = connection.InsertBulkAsync(records, outputMap: OutputMapper.MapOnce).Result;
 				records = records.Skip(1);
 				foreach (var record in records)
 				{
@@ -321,7 +321,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				var records = TestData.ComputedData(10);
 
 				var recordsToInsert = records.Take(9);
-				var inserted = connection.InsertBulkAsync(recordsToInsert, mapGeneratedValues: true).Result;
+				var inserted = connection.InsertBulkAsync(recordsToInsert, outputMap: OutputMapper.MapOnce).Result;
 
 				foreach (var record in recordsToInsert.Skip(1))
 				{
@@ -331,7 +331,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				}
 
 				// act
-				var updated = connection.UpsertBulkAsync(records.Skip(1), mapGeneratedValues: true).Result;
+				var updated = connection.UpsertBulkAsync(records.Skip(1), outputMap: OutputMapper.Map).Result;
 
 				// assert
 				var updatedRecords = connection.GetAll<Computed>();

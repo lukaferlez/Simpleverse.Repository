@@ -35,7 +35,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					record.Name = (record.Id + 2).ToString();
 
 				// act
-				var updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
+				var updated = connection.UpdateBulkAsync(records, outputMap: OutputMapper.Map).Result;
 
 				// assert
 				Assert(connection, records, check, records.Count(), updated);
@@ -60,7 +60,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 				var updated = 0;
 				using (var transaction = connection.BeginTransaction())
 				{
-					updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues, transaction: transaction).Result;
+					updated = connection.UpdateBulkAsync(records, outputMap: OutputMapper.Map, transaction: transaction).Result;
 					transaction.Commit();
 				}
 
@@ -84,7 +84,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					record.Name = (record.Id + 2).ToString();
 
 				// act
-				var updated = connection.UpdateBulkAsync(records, mapGeneratedValues: mapGeneratedValues).Result;
+				var updated = connection.UpdateBulkAsync(records, outputMap: OutputMapper.Map).Result;
 
 				// assert
 				Assert(connection, records, check, records.Count() / 2, updated);
