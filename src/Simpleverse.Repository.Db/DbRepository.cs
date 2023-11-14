@@ -74,6 +74,11 @@ namespace Simpleverse.Repository.Db
 			return await ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, (TFirst, TSecond, TThird, TFourth, TFifth, TSixth)>(rawSql, (first, second, third, fourth, fifth, sixth) => (first, second, third, fourth, fifth, sixth), param: parameters, transaction: tran));
 		}
 
+		public async Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(string rawSql, object parameters)
+		{
+			return await ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, (TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh)>(rawSql, (first, second, third, fourth, fifth, sixth, seventh) => (first, second, third, fourth, fifth, sixth, seventh), param: parameters, transaction: tran));
+		}
+
 		public async Task<int> ExecuteAsync(SqlBuilder.Template query)
 		{
 			return await ExecuteAsync((conn, tran) => conn.ExecuteAsync(query.RawSql, param: query.Parameters, transaction: tran));

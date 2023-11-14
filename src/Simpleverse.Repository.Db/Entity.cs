@@ -102,7 +102,23 @@ namespace Simpleverse.Repository.Db
 			var builder = Source.AsQuery();
 			SelectQuery(builder, filter, options);
 
+			var type = typeof(T);
+
 			var query = SelectTemplate(builder, options);
+			if (type.Name.StartsWith("ValueTuple`"))
+			{
+				var typeArguments = type.GenericTypeArguments;
+				var typeArgumentsCount = typeArguments.Count();
+				if (typeArgumentsCount > 7)
+					throw new NotSupportedException("Number of Tuple arguments is more than the supported 7.");
+
+				return (Task<IEnumerable<T>>) Repository
+					.GetType()
+					.GetMethod(nameof(Repository.QueryAsync), typeArgumentsCount, new[] { query.GetType() } )
+					.MakeGenericMethod(type.GenericTypeArguments)
+					.Invoke(Repository, new[] { query });
+			}
+			
 			return Repository.QueryAsync<T>(query);
 		}
 
