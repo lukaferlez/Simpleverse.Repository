@@ -100,11 +100,11 @@ namespace Simpleverse.Repository.Db
 		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
 		{
 			var builder = Source.AsQuery();
+
 			SelectQuery(builder, filter, options);
+			var query = SelectTemplate(builder, options);
 
 			var type = typeof(T);
-
-			var query = SelectTemplate(builder, options);
 			if (type.Name.StartsWith("ValueTuple`"))
 			{
 				var typeArguments = type.GenericTypeArguments;
@@ -123,11 +123,13 @@ namespace Simpleverse.Repository.Db
 		}
 
 		protected virtual void SelectQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
-			=> Query(builder, filter);
+		{
+			builder.SelectAll();
+			Query(builder, filter);
+		}
 
 		protected virtual SqlBuilder.Template SelectTemplate(QueryBuilder<TModel> builder, TOptions options)
-		{
-			builder.Select($"{Source.Alias}.*");
+		{	
 			return builder.AsSelect(options: options);
 		}
 
