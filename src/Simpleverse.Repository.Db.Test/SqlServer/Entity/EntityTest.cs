@@ -5,6 +5,7 @@ using Simpleverse.Repository.Db.Extensions.Dapper;
 using Xunit;
 using Xunit.Abstractions;
 using System;
+using System.Transactions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 {
@@ -14,7 +15,66 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public EntityTest(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)
 		{
+		}
 
+		[Fact]
+		public void AddAsyncTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				var identityRecords = TestData.IdentityWithoutIdData(10);
+				var entity = new IdentityEntity(_fixture);
+
+				// act
+				var recordCount = entity.AddAsync(identityRecords).Result;
+
+				// assert
+				var records = connection.GetAll<Identity>();
+				Assert.Equal(10, recordCount);
+				Assert.Equal(10, records.Count());
+			}
+		}
+
+		[Fact]
+		public void AddAsyncWithAmbientTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+			}
+
+			var entity = new IdentityEntity(_fixture);
+			var identityRecords = TestData.IdentityWithoutIdData(10);
+
+			// act
+			var recordCount = 0;
+			using (
+					var ts = new TransactionScope(
+						TransactionScopeOption.Required,
+						new TransactionOptions() { IsolationLevel = IsolationLevel.ReadCommitted },
+						TransactionScopeAsyncFlowOption.Enabled
+					)
+				)
+			{
+				recordCount = entity.AddAsync(identityRecords).Result;
+				ts.Complete();
+			}
+
+			// assert
+			using (var connection = _fixture.GetConnection())
+			{
+				
+				var records = connection.GetAll<Identity>();
+				Assert.Equal(10, recordCount);
+				Assert.Equal(10, records.Count());
+			}
 		}
 
 		[Fact]
@@ -64,7 +124,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 						Identity identity6,
 						Identity identity7,
 						Identity identity8
-					) >().Result
+					)>().Result
 				);
 
 			Assert.Equal("Number of Tuple arguments is more than the supported 7.", exception.Message);
