@@ -127,7 +127,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				return new
 				{
 					x.Name,
-					Nullable = nullableUnderlyingType != null,
+					Nullable = isNullable,
 					Type = castType ?? type,
 					CastType = castType,
 					Property = x
