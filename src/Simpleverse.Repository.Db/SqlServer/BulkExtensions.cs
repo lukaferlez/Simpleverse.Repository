@@ -114,6 +114,10 @@ namespace Simpleverse.Repository.Db.SqlServer
 			{
 				var nullableUnderlyingType = Nullable.GetUnderlyingType(x.PropertyType);
 
+				bool isNullable =  !x.PropertyType.IsValueType
+				|| (x.PropertyType.IsGenericType && x.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+				|| nullableUnderlyingType != null;
+
 				var type = nullableUnderlyingType ?? x.PropertyType;
 
 				Type castType = null;
@@ -123,7 +127,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				return new
 				{
 					x.Name,
-					Nullable = nullableUnderlyingType != null,
+					Nullable = isNullable,
 					Type = castType ?? type,
 					CastType = castType,
 					Property = x
