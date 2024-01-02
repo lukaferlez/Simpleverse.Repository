@@ -6,15 +6,21 @@ using Xunit;
 using Xunit.Abstractions;
 using System;
 using System.Transactions;
+using Simpleverse.Repository.Db.SqlServer;
+using StackExchange.Profiling.Data;
+using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 {
 	[Collection("SqlServerCollection")]
 	public class EntityTest : TestFixture
 	{
+		private readonly SqlRepository _sqlRepository;
+
 		public EntityTest(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)
 		{
+			_sqlRepository = new SqlRepository(() => (ProfiledDbConnection)fixture.GetConnection());
 		}
 
 		[Fact]
@@ -129,16 +135,148 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 
 			Assert.Equal("Number of Tuple arguments is more than the supported 7.", exception.Message);
 		}
+
+		[Fact]
+		public async Task AddAsync_WhenProvidedSqlRepository_InsertsRecords()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				var identityRecords = TestData.IdentityWithoutIdData(10);
+				var entity = new IdentityEntity(_sqlRepository);
+
+				// act
+				var recordCount = await entity.AddAsync(identityRecords);
+
+				// assert
+				var records = connection.GetAll<Identity>();
+				Assert.Equal(10, recordCount);
+				Assert.Equal(10, records.Count());
+			}
+		}
+
+		[Theory]
+		[InlineData(10)]
+		public async Task GetAsync_WhenProvidedSqlRepository_ReturnsRecord(int count)
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				connection.Truncate<ExplicitKey>();
+				var explicitKeyRecords = TestData.ExplicitKeyData(count);
+				var identityRecords = TestData.IdentityWithIdData(count);
+				connection.Insert(explicitKeyRecords);
+				connection.Insert(identityRecords);
+				var entity = new IdentityEntity(_sqlRepository);
+
+				// act
+				var recordCount = await entity.AddAsync(identityRecords);
+				var returnedEntity = await entity.GetAsync();
+				// assert
+				Assert.Equal(count, recordCount);
+				Assert.NotNull(returnedEntity);
+			}
+		}
+
+		[Theory]
+		[InlineData(10)]
+		public async Task ListAsync_WhenProvidedSqlRepository_ReturnsRecords(int count)
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				connection.Truncate<ExplicitKey>();
+				var explicitKeyRecords = TestData.ExplicitKeyData(count);
+				var identityRecords = TestData.IdentityWithIdData(count);
+				connection.Insert(explicitKeyRecords);
+				connection.Insert(identityRecords);
+				var entity = new IdentityEntity(_sqlRepository);
+
+				// act
+				var recordCount = await entity.AddAsync(identityRecords);
+				var returnedEntity = await entity.ListAsync();
+				// assert
+				Assert.Equal(count, recordCount);
+				Assert.NotNull(returnedEntity);
+			}
+		}
+
+		[Theory]
+		[InlineData(10)]
+		public async Task UpsertAsync_WhenProvidedSqlRepositoryAndIdentityDoesntExist_InsertsRecord(int count)
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				connection.Truncate<ExplicitKey>();
+				var explicitKeyRecords = TestData.ExplicitKeyData(count);
+				connection.Insert(explicitKeyRecords);
+				var entity = new IdentityEntity(_sqlRepository);
+				var identityToInsert = new Identity
+				{
+					Name = Guid.NewGuid().ToString()
+				};
+				// act
+				identityToInsert.Id = await entity.UpsertAsync(identityToInsert);
+				var fetchedIdentity = await entity.GetAsync(filter => filter.Name = identityToInsert.Name);
+				// assert
+				Assert.NotEqual(0, identityToInsert.Id);
+				Assert.NotNull(fetchedIdentity);
+			}
+		}
+
+		[Theory]
+		[InlineData(10)]
+		public async Task UpsertAsync_WhenProvidedSqlRepositoryAndIdentityExists_UpdatesRecord(int count)
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+				connection.Truncate<ExplicitKey>();
+				var explicitKeyRecords = TestData.ExplicitKeyData(count);
+				connection.Insert(explicitKeyRecords);
+				var entity = new IdentityEntity(_sqlRepository);
+				var identityToInsert = new Identity
+				{
+					Name = Guid.NewGuid().ToString()
+				};
+				// act
+				identityToInsert.Id = await entity.AddAsync(identityToInsert);
+				identityToInsert.Name = Guid.NewGuid().ToString();
+				await entity.UpsertAsync(identityToInsert);
+				var fetchedIdentity = await entity.GetAsync(filter => filter.Name = identityToInsert.Name);
+				// assert
+				Assert.NotEqual(0, identityToInsert.Id);
+				Assert.NotNull(fetchedIdentity);
+			}
+		}
 	}
 
-	public class IdentityEntity : Entity<Identity, QueryFilter, DbQueryOptions>
+	public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
 	{
 		public IdentityEntity(DatabaseFixture fixture)
 			: base(new DbRepository(() => fixture.GetConnection()), new Table<Identity>("I"))
 		{
 		}
 
-		protected override void SelectQuery(QueryBuilder<Identity> builder, QueryFilter filter, DbQueryOptions options)
+        public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
+
+        protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
 		{
 			var explicitKey = new Table<ExplicitKey>("EK");
 
@@ -151,6 +289,12 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			);
 
 			base.SelectQuery(builder, filter, options);
+		}
+
+		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
+		{
+			builder.Where(x=> x.Name, filter.Name);
+			base.Filter(builder, filter);
 		}
 	}
 }
