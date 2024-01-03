@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 
 namespace Simpleverse.Repository.Db
 {
@@ -99,8 +101,8 @@ namespace Simpleverse.Repository.Db
 		{
 			if (values == null || !values.Any())
 				return this;
-
-			var valuesJoined = string.Join(',', values);
+			var formatedValues = values.Select(x=> string.Format(CultureInfo.InvariantCulture, "{0}", x));
+			var valuesJoined = string.Join(',', formatedValues);
 			var tType = typeof(T);
 			if (tType.IsEnum)
 				valuesJoined = string.Join(',', values.Select(x => Enum.Format(tType, x, "d")));
