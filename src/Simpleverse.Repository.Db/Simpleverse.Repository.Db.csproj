@@ -13,7 +13,7 @@
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>Dapper, Bulk, Merge, Upsert, Delete, Insert, Update, Repository</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>2.0.23</Version>
+    <Version>2.0.24</Version>
     <Description>High performance operation for MS SQL Server built for Dapper ORM. Including bulk operations Insert, Update, Delete, Get as well as Upsert both single and bulk.</Description>
     <AssemblyVersion>2.0.23</AssemblyVersion>
     <FileVersion>2.0.23</FileVersion>
