@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Simpleverse.Repository.Extensions;
 using System.Linq;
 
 namespace Simpleverse.Repository.Db
@@ -91,7 +92,6 @@ namespace Simpleverse.Repository.Db
 		{
 			if (values == null || !values.Any())
 				return this;
-
 			return In(string.Join(',', values.Select(x => $"'{x.Replace("'", "''")}'")), not);
 		}
 
@@ -99,8 +99,7 @@ namespace Simpleverse.Repository.Db
 		{
 			if (values == null || !values.Any())
 				return this;
-
-			var valuesJoined = string.Join(',', values);
+			var valuesJoined = values.Join(',');
 			var tType = typeof(T);
 			if (tType.IsEnum)
 				valuesJoined = string.Join(',', values.Select(x => Enum.Format(tType, x, "d")));
