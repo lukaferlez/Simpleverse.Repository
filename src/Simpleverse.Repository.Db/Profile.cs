@@ -11,9 +11,9 @@ namespace Simpleverse.Repository.Db
 	public class Profile : IDisposable
 	{
 
-        public Profile(string profilerName = null) => MiniProfiler.StartNew(profilerName);
+		public Profile(string profilerName = null) => MiniProfiler.StartNew(profilerName);
 
-        public virtual void OverridableDispose() => MiniProfiler.Current.Stop();
+		public virtual void OverridableDispose() => MiniProfiler.Current.Stop();
 
 		public void Dispose() => OverridableDispose();
 
