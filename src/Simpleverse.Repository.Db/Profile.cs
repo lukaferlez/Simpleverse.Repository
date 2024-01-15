@@ -27,7 +27,7 @@ namespace Simpleverse.Repository.Db
 				.Append(DateTime.UtcNow)
 				.AppendLine();
 
-            var timings = new Stack<Timing>();
+			var timings = new Stack<Timing>();
 			timings.Push(profiler.Root);
 
 			while (timings.Count > 0)
