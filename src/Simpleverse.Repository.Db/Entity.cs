@@ -1,14 +1,15 @@
-﻿using Dapper.Contrib.Extensions;
-using Dapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
+﻿using Dapper;
+using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Operations;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db
 {
@@ -112,13 +113,13 @@ namespace Simpleverse.Repository.Db
 				if (typeArgumentsCount > 7)
 					throw new NotSupportedException("Number of Tuple arguments is more than the supported 7.");
 
-				return (Task<IEnumerable<T>>) Repository
+				return (Task<IEnumerable<T>>)Repository
 					.GetType()
-					.GetMethod(nameof(Repository.QueryAsync), typeArgumentsCount, new[] { query.GetType() } )
+					.GetMethod(nameof(Repository.QueryAsync), typeArgumentsCount, new[] { query.GetType() })
 					.MakeGenericMethod(type.GenericTypeArguments)
 					.Invoke(Repository, new[] { query });
 			}
-			
+
 			return Repository.QueryAsync<T>(query);
 		}
 
@@ -129,7 +130,7 @@ namespace Simpleverse.Repository.Db
 		}
 
 		protected virtual SqlBuilder.Template SelectTemplate(QueryBuilder<TModel> builder, TOptions options)
-		{	
+		{
 			return builder.AsSelect(options: options);
 		}
 
@@ -214,110 +215,169 @@ namespace Simpleverse.Repository.Db
 			Source = source;
 		}
 
+		#region Get
+
 		public virtual async Task<T> GetAsync(dynamic id)
 		{
-			return await Repository.ExecuteAsync<T>((conn, tran) => SqlMapperExtensions.GetAsync<T>(conn, id, transaction: tran));
+			return await Repository.ExecuteAsync<T>((conn, tran) => GetAsync(conn, id, transaction: tran));
 		}
+		public virtual Task<T> GetAsync(IDbConnection connection, dynamic id, IDbTransaction transaction = null)
+			=> SqlMapperExtensions.GetAsync<T>(connection, id, transaction: transaction);
+
+		#endregion
+
+		#region Add
+
 		public virtual async Task<int> AddAsync(T model)
 		{
-			return await Repository.ExecuteAsync((conn, tran) => conn.InsertAsync(model, transaction: tran));
+			return await Repository.ExecuteAsync((conn, tran) => AddAsync(conn, model, transaction: tran));
 		}
+		public virtual Task<int> AddAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
+			=> connection.InsertAsync(model, transaction: transaction);
+
 		public virtual async Task<int> AddAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) =>
-				{
-					if (Repository is SqlRepository)
-					{
-						return conn.InsertBulkAsync(
-							models,
-							transaction: tran,
-							outputMap: outputMap
-						);
-					}
-
-					return conn.InsertAsync(models, transaction: tran);
-				}
+				(conn, tran) => AddAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+		public virtual Task<int> AddAsync(
+			IDbConnection connection,
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (Repository is SqlRepository)
+			{
+				return connection.InsertBulkAsync(
+					models,
+					transaction: transaction,
+					outputMap: outputMap
+				);
+			}
+
+			return connection.InsertAsync(models, transaction: transaction);
+		}
+
+		#endregion
+
+		#region Update
+
 		public virtual async Task<bool> UpdateAsync(T model)
 		{
-			return await Repository.ExecuteAsync((conn, tran) => conn.UpdateAsync(model, transaction: tran));
+			return await Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, model, transaction: tran));
 		}
+		public virtual Task<bool> UpdateAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
+			=> connection.UpdateAsync(model, transaction: transaction);
+
 		public virtual async Task<int> UpdateAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
-				async (conn, tran) =>
-				{
-					if (Repository is SqlRepository)
-					{
-						return await conn.UpdateBulkAsync(
-							models,
-							transaction: tran,
-							outputMap: outputMap
-						);
-					}
-
-					var sucess = await conn.UpdateAsync(models, transaction: tran);
-					return models.Count();
-				}
+				(conn, tran) => UpdateAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+		public virtual async Task<int> UpdateAsync(
+			IDbConnection connection,
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (Repository is SqlRepository)
+			{
+				return await connection.UpdateBulkAsync(
+					models,
+					transaction: transaction,
+					outputMap: outputMap
+				);
+			}
+
+			var sucess = await connection.UpdateAsync(models, transaction: transaction);
+			return models.Count();
+		}
+
+		#endregion
+
+		#region Upsert
+
 		public virtual async Task<int> UpsertAsync(T model)
 		{
 			return await Repository.ExecuteAsync(
-				(conn, tran) =>
-				{
-					if (Repository is SqlRepository)
-						return conn.UpsertAsync(model, transaction: tran);
-
-					throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
-				}
+				(conn, tran) => UpsertAsync(conn, model, transaction: tran)
 			);
 		}
+		public virtual Task<int> UpsertAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
+		{
+			if (!(Repository is SqlRepository))
+				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
+
+			return connection.UpsertAsync(model, transaction: transaction);
+		}
+
 		public virtual async Task<int> UpsertAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) =>
-				{
-					if (Repository is SqlRepository)
-						return conn.UpsertBulkAsync(models, transaction: tran, outputMap: outputMap);
-
-					throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
-				}
+				(conn, tran) => UpsertAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+		public virtual Task<int> UpsertAsync(
+			IDbConnection connection,
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (!(Repository is SqlRepository))
+				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
+
+			return connection.UpsertBulkAsync(models, transaction: transaction);
+		}
+
+		#endregion
+
+		#region Delete
+
 		public virtual async Task<bool> DeleteAsync(T model)
 		{
-			return await Repository.ExecuteAsync((conn, tran) => conn.DeleteAsync(model, transaction: tran));
+			return await Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, model, transaction: tran));
 		}
+		public virtual Task<bool> DeleteAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
+			=> connection.DeleteAsync(model, transaction: transaction);
+
 		public virtual async Task<int> DeleteAsync(IEnumerable<T> models)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
-				async (conn, tran) =>
-				{
-					if (Repository is SqlRepository)
-					{
-						return await conn.DeleteBulkAsync(
-							models,
-							transaction: tran
-						);
-					}
-
-					var sucess = await conn.DeleteAsync(models, transaction: tran);
-					return models.Count();
-				}
+				(conn, tran) => DeleteAsync(conn, models, transaction: tran)
 			);
 		}
+		public virtual async Task<int> DeleteAsync(IDbConnection connection, IEnumerable<T> models, IDbTransaction transaction = null)
+		{
+			if (Repository is SqlRepository)
+			{
+				return await connection.DeleteBulkAsync(
+					models,
+					transaction: transaction
+				);
+			}
+
+			var sucess = await connection.DeleteAsync(models, transaction: transaction);
+			return models.Count();
+		}
+
+		#endregion
+
+		#region Min
+
 		public virtual Task<TResult?> MinAsync<TResult>(string columnName)
 			where TResult : struct
 		{
@@ -331,8 +391,18 @@ namespace Simpleverse.Repository.Db
 		protected virtual Task<TResult?> MinAsync<TResult>(Selector column)
 			where TResult : struct
 		{
-			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}"));
+			return Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
 		}
+		protected virtual Task<TResult?> MinAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
+			where TResult : struct
+		{
+			return connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
+		}
+
+		#endregion
+
+		#region Max
+
 		public virtual Task<TResult?> MaxAsync<TResult>(string columnName)
 			where TResult : struct
 		{
@@ -346,7 +416,14 @@ namespace Simpleverse.Repository.Db
 		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column)
 			where TResult : struct
 		{
-			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}"));
+			return Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
 		}
+		protected virtual Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
+			where TResult : struct
+		{
+			return connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
+		}
+
+		#endregion
 	}
 }

@@ -1,23 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Dapper;
 using Microsoft.Data.SqlClient;
-using System.Threading.Tasks;
-using Dapper;
-using System.Linq;
-using System.Reflection;
 using Simpleverse.Repository.Db.Meta;
 using Simpleverse.Repository.Db.SqlServer;
-using System.Data.Common;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer.Merge
 {
 	public static class MergeExtensions
 	{
 		public async static Task<int> UpsertAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			T entitiesToUpsert,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -34,9 +34,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		}
 
 		public async static Task<int> MergeAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			T entitiesToMerge,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
 			Action<MergeActionOptions<T>> matched = null,
@@ -68,9 +68,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> UpsertBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToUpsert,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,
@@ -99,9 +99,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> MergeBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToMerge,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,

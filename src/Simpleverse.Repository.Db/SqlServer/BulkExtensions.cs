@@ -1,26 +1,21 @@
-﻿using System;
+﻿using Dapper;
+using Dapper.Contrib.Extensions;
+using Microsoft.Data.SqlClient;
+using Simpleverse.Repository.Db.Meta;
+using Simpleverse.Repository.Db.SqlServer;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
-using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
-using Dapper;
-using Dapper.Contrib.Extensions;
-using System.Dynamic;
-using Simpleverse.Repository.Db.Meta;
-using Simpleverse.Repository.Db.SqlServer;
-using System.Data.Common;
-using Simpleverse.Repository.Db.SqlServer.Merge;
-using Microsoft.Extensions.Logging;
-using System.IO.MemoryMappedFiles;
 
 namespace Simpleverse.Repository.Db.SqlServer
 {
 	public static class BulkExtensions
 	{
 		public static async Task<string> TransferBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToInsert,
 			SqlTransaction transaction = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
@@ -49,11 +44,11 @@ namespace Simpleverse.Repository.Db.SqlServer
 		/// <param name="sqlBulkCopy"></param>
 		/// <returns></returns>
 		public static async Task<string> TransferBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToInsert,
 			string tableName,
 			IEnumerable<PropertyInfo> columnsToCopy,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
@@ -114,7 +109,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			{
 				var nullableUnderlyingType = Nullable.GetUnderlyingType(x.PropertyType);
 
-				bool isNullable =  !x.PropertyType.IsValueType
+				bool isNullable = !x.PropertyType.IsValueType
 				|| (x.PropertyType.IsGenericType && x.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
 				|| nullableUnderlyingType != null;
 
@@ -181,9 +176,9 @@ namespace Simpleverse.Repository.Db.SqlServer
 		}
 
 		public async static Task<IEnumerable<T>> GetBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToGet,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
@@ -227,9 +222,9 @@ namespace Simpleverse.Repository.Db.SqlServer
 		/// <param name="outputMap"></param>
 		/// <returns>Identity of inserted entity, or number of inserted rows if inserting a list</returns>
 		public async static Task<int> InsertBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToInsert,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -304,9 +299,9 @@ namespace Simpleverse.Repository.Db.SqlServer
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> UpdateBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToUpdate,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -389,9 +384,9 @@ namespace Simpleverse.Repository.Db.SqlServer
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> DeleteBulkAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entitiesToDelete,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		) where T : class
@@ -438,10 +433,10 @@ namespace Simpleverse.Repository.Db.SqlServer
 		}
 
 		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
-			DbTransaction transaction = null,
+			IDbTransaction transaction = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
@@ -509,11 +504,11 @@ namespace Simpleverse.Repository.Db.SqlServer
 		}
 
 		public static async Task<R> ExecuteAsync<T, R>(
-			this DbConnection connection,
+			this IDbConnection connection,
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
-			Func<DbConnection, DbTransaction, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
-			DbTransaction transaction = null,
+			Func<IDbConnection, IDbTransaction, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
+			IDbTransaction transaction = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{

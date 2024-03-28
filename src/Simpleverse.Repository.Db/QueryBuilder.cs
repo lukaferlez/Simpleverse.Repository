@@ -453,23 +453,19 @@ namespace Simpleverse.Repository.Db
 
 		public QueryBuilder<TTable> Where<T>(Expression<Func<TTable, T>> column, Action<Selector> selectorAction)
 		{
-			var selector = Table.Column(column);
-			selectorAction?.Invoke(selector);
-			this.Where(selector);
+			this.Where(Table, column, selectorAction);
 			return this;
 		}
 
 		public QueryBuilder<TTable> Where<T>(Expression<Func<TTable, T>> column, Func<Selector, Selector> selectorFunc)
 		{
-			var selector = Table.Column(column);
-			this.Where(selectorFunc?.Invoke(selector));
+			this.Where(Table, column, selectorFunc);
 			return this;
 		}
 
 		public QueryBuilder<TTable> Where<T>(Expression<Func<TTable, T>> column, Func<Selector, string> selectorFunc)
 		{
-			var selector = Table.Column(column);
-			Where(selectorFunc?.Invoke(selector));
+			this.Where(Table, column, selectorFunc);
 			return this;
 		}
 
@@ -477,7 +473,7 @@ namespace Simpleverse.Repository.Db
 			Func<Func<Expression<Func<TTable, object>>, Selector>, string> selectorBuilder
 		)
 		{
-			Where(selectorBuilder((column) => Table.Column(column)));
+			this.Where(selectorBuilder);
 			return this;
 		}
 

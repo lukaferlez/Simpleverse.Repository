@@ -269,8 +269,44 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 
 		#endregion
 
+		#region Selector
+
+		public static SqlBuilder Where<TTable, T>(this SqlBuilder builder, Table<TTable> table, Expression<Func<TTable, T>> column, Action<Selector> selectorAction)
+		{
+			var selector = table.Column(column);
+			selectorAction?.Invoke(selector);
+			builder.Where(selector);
+			return builder;
+		}
+
+		public static SqlBuilder Where<TTable, T>(this SqlBuilder builder, Table<TTable> table, Expression<Func<TTable, T>> column, Func<Selector, Selector> selectorFunc)
+		{
+			var selector = table.Column(column);
+			builder.Where(selectorFunc?.Invoke(selector));
+			return builder;
+		}
+
+		public static SqlBuilder Where<TTable, T>(this SqlBuilder builder, Table<TTable> table, Expression<Func<TTable, T>> column, Func<Selector, string> selectorFunc)
+		{
+			var selector = table.Column(column);
+			builder.Where(selectorFunc?.Invoke(selector));
+			return builder;
+		}
+
+		public static SqlBuilder Where<TTable>(
+			this SqlBuilder builder,
+			Table<TTable> table,
+			Func<Func<Expression<Func<TTable, object>>, Selector>, string> selectorBuilder
+		)
+		{
+			builder.Where(selectorBuilder((column) => table.Column(column)));
+			return builder;
+		}
+
 		public static SqlBuilder Where(this SqlBuilder builder, Selector selector)
 			=> builder.Where(selector.ToString());
+
+		#endregion
 
 		private static SqlBuilder WhereInternal<T>(
 			this SqlBuilder sqlBuilder,
