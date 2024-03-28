@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Dapper.Contrib.Extensions;
+using Simpleverse.Repository.Db.Operations;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
 using Simpleverse.Repository.Operations;
@@ -59,7 +60,11 @@ namespace Simpleverse.Repository.Db
 	}
 
 	public class Entity<TModel, TFilter, TOptions>
-		: Entity<TModel>, IQueryExist<TFilter>, IQueryGet<TModel, TFilter, TOptions>, IQueryList<TModel, TFilter, TOptions>, IDelete<TModel, TFilter, TOptions>
+		: Entity<TModel>,
+			IQueryExistDb<TFilter>,
+			IQueryGetDb<TModel, TFilter, TOptions>,
+			IQueryListDb<TModel, TFilter, TOptions>,
+			IDeleteDb<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class, IQueryFilter, new()
 		where TOptions : DbQueryOptions, new()
@@ -69,43 +74,71 @@ namespace Simpleverse.Repository.Db
 		{
 		}
 
-		#region Select
+		#region Get
 
-		public virtual Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return GetAsync<TModel>(filterSetup, optionsSetup);
-		}
+		public Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> GetAsync<TModel>(filterSetup, optionsSetup);
+		public Task<TModel> GetAsync(
+			IDbConnection connection,
+			Action<TFilter> filterSetup = null,
+			Action<TOptions> optionsSetup = null,
+			IDbTransaction transaction = null
+		)
+			=> GetAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction);
 
-		public virtual async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return (await ListAsync<T>(filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); })).FirstOrDefault();
-		}
+		public async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> (await ListAsync<T>(filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); })).FirstOrDefault();
+		public async Task<T> GetAsync<T>(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null)
+			=> (await ListAsync<T>(connection, filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); }, transaction: transaction)).FirstOrDefault();
 
-		public virtual async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
-		{
-			return await GetAsync(filterSetup: filterSetup) != null;
-		}
+		#endregion
 
-		public virtual Task<IEnumerable<TModel>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return ListAsync<TModel>(filterSetup, optionsSetup);
-		}
+		#region Exists
 
-		public virtual Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		public async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
+			=> await GetAsync(filterSetup: filterSetup) != null;
+		public async Task<bool> ExistsAsync(IDbConnection connection, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			=> await GetAsync(connection, filterSetup: filterSetup, transaction: transaction) != null;
+
+		#endregion
+
+		#region List
+
+		public Task<IEnumerable<TModel>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> ListAsync<TModel>(filterSetup, optionsSetup);
+		public Task<IEnumerable<TModel>> ListAsync(
+			IDbConnection connection,
+			Action<TFilter> filterSetup = null,
+			Action<TOptions> optionsSetup = null,
+			IDbTransaction transaction = null
+		)
+			=> ListAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction);
+
+		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
 			var filter = filterSetup.Get();
 			var options = optionsSetup.Get();
 			return ListAsync<T>(filter, options);
 		}
-
-		public virtual Task<IEnumerable<TModel>> ListAsync(TFilter filter, TOptions options)
+		public Task<IEnumerable<T>> ListAsync<T>(
+			IDbConnection connection,
+			Action<TFilter> filterSetup = null,
+			Action<TOptions> optionsSetup = null,
+			IDbTransaction transaction = null
+		)
 		{
-			return ListAsync<TModel>(filter, options);
+			var filter = filterSetup.Get();
+			var options = optionsSetup.Get();
+			return ListAsync<T>(connection, filter, options, transaction: transaction);
 		}
+
+		public Task<IEnumerable<TModel>> ListAsync(TFilter filter, TOptions options)
+			=> ListAsync<TModel>(filter, options);
+		public Task<IEnumerable<TModel>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
+			=> ListAsync<TModel>(connection, filter, options, transaction);
 
 		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
 			=> Repository.ExecuteAsync((conn, tran) => ListAsync<T>(conn, filter, options, transaction: tran));
-
 		public virtual Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 		{
 			var builder = Source.AsQuery();
@@ -146,7 +179,14 @@ namespace Simpleverse.Repository.Db
 
 		#region Delete
 
-		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, filterSetup, optionsSetup, transaction: tran));
+		public virtual Task<int> DeleteAsync(
+			IDbConnection connection,
+			Action<TFilter> filterSetup = null,
+			Action<TOptions> optionsSetup = null,
+			IDbTransaction transaction = null
+		)
 		{
 			var filter = filterSetup.Get();
 			var options = optionsSetup.Get();
@@ -154,7 +194,7 @@ namespace Simpleverse.Repository.Db
 			DeleteQuery(builder, filter, options);
 
 			var query = DeleteTemplate(builder, options);
-			return Repository.ExecuteAsync(query);
+			return connection.ExecuteAsync(query, tran: transaction);
 		}
 
 		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
@@ -251,7 +291,7 @@ namespace Simpleverse.Repository.Db
 		#endregion
 	}
 
-	public class Entity<T> : IAdd<T>, IUpdate<T>, IDelete<T>, IAggregate
+	public class Entity<T> : IAddDb<T>, IUpdateDb<T>, IDeleteDb<T>, IAggregateDb
 		where T : class
 	{
 		protected DbRepository Repository { get; }
@@ -265,7 +305,7 @@ namespace Simpleverse.Repository.Db
 
 		#region Get
 
-		public virtual async Task<T> GetAsync(dynamic id)
+		public async Task<T> GetAsync(dynamic id)
 		{
 			return await Repository.ExecuteAsync<T>((conn, tran) => GetAsync(conn, id, transaction: tran));
 		}
@@ -276,14 +316,14 @@ namespace Simpleverse.Repository.Db
 
 		#region Add
 
-		public virtual async Task<int> AddAsync(T model)
+		public async Task<int> AddAsync(T model)
 		{
 			return await Repository.ExecuteAsync((conn, tran) => AddAsync(conn, model, transaction: tran));
 		}
 		public virtual Task<int> AddAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
 			=> connection.InsertAsync(model, transaction: transaction);
 
-		public virtual async Task<int> AddAsync(
+		public async Task<int> AddAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
@@ -315,14 +355,14 @@ namespace Simpleverse.Repository.Db
 
 		#region Update
 
-		public virtual async Task<bool> UpdateAsync(T model)
+		public async Task<bool> UpdateAsync(T model)
 		{
 			return await Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, model, transaction: tran));
 		}
 		public virtual Task<bool> UpdateAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
 			=> connection.UpdateAsync(model, transaction: transaction);
 
-		public virtual async Task<int> UpdateAsync(
+		public async Task<int> UpdateAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
@@ -355,7 +395,7 @@ namespace Simpleverse.Repository.Db
 
 		#region Upsert
 
-		public virtual async Task<int> UpsertAsync(T model)
+		public async Task<int> UpsertAsync(T model)
 		{
 			return await Repository.ExecuteAsync(
 				(conn, tran) => UpsertAsync(conn, model, transaction: tran)
@@ -369,7 +409,7 @@ namespace Simpleverse.Repository.Db
 			return connection.UpsertAsync(model, transaction: transaction);
 		}
 
-		public virtual async Task<int> UpsertAsync(
+		public async Task<int> UpsertAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
 		)
@@ -395,14 +435,14 @@ namespace Simpleverse.Repository.Db
 
 		#region Delete
 
-		public virtual async Task<bool> DeleteAsync(T model)
+		public async Task<bool> DeleteAsync(T model)
 		{
 			return await Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, model, transaction: tran));
 		}
 		public virtual Task<bool> DeleteAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
 			=> connection.DeleteAsync(model, transaction: transaction);
 
-		public virtual async Task<int> DeleteAsync(IEnumerable<T> models)
+		public async Task<int> DeleteAsync(IEnumerable<T> models)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) => DeleteAsync(conn, models, transaction: tran)
@@ -426,51 +466,51 @@ namespace Simpleverse.Repository.Db
 
 		#region Min
 
-		public virtual Task<TResult?> MinAsync<TResult>(string columnName)
+		public Task<TResult?> MinAsync<TResult>(string columnName)
 			where TResult : struct
-		{
-			return MinAsync<TResult>(Source.Column(columnName));
-		}
-		public virtual Task<TResult?> MinAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
+			=> MinAsync<TResult>(Source.Column(columnName));
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
 			where TResult : struct
-		{
-			return MinAsync<TResult>(Source.Column(columnExpression));
-		}
+			=> MinAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+
+		public Task<TResult?> MinAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
+			where TResult : struct
+			=> MinAsync<TResult>(Source.Column(columnExpression));
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<T, TResult>> columnExpression, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MinAsync<TResult>(connection, Source.Column(columnExpression), transaction: transaction);
+
 		protected virtual Task<TResult?> MinAsync<TResult>(Selector column)
 			where TResult : struct
-		{
-			return Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
-		}
+			=> Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
 		protected virtual Task<TResult?> MinAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
 			where TResult : struct
-		{
-			return connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
-		}
+			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
 
 		#endregion
 
 		#region Max
 
-		public virtual Task<TResult?> MaxAsync<TResult>(string columnName)
+		public Task<TResult?> MaxAsync<TResult>(string columnName)
 			where TResult : struct
-		{
-			return MaxAsync<TResult>(Source.Column(columnName));
-		}
-		public virtual Task<TResult?> MaxAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
+			=> MaxAsync<TResult>(Source.Column(columnName));
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
 			where TResult : struct
-		{
-			return MaxAsync<TResult>(Source.Column(columnExpression));
-		}
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+
+		public Task<TResult?> MaxAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
+			where TResult : struct
+			=> MaxAsync<TResult>(Source.Column(columnExpression));
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<T, TResult>> columnExpression, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), transaction);
+
 		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column)
 			where TResult : struct
-		{
-			return Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
-		}
+			=> Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
 		protected virtual Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
 			where TResult : struct
-		{
-			return connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
-		}
+			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
 
 		#endregion
 	}
