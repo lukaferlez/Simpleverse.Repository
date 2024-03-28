@@ -25,6 +25,9 @@ namespace Simpleverse.Repository.Db
 		}
 
 		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup, tran));
+
+		public virtual Task<int> UpdateAsync(IDbConnection conn, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction tran = null)
 		{
 			var update = updateSetup.Get();
 			var filter = filterSetup.Get();
@@ -34,7 +37,7 @@ namespace Simpleverse.Repository.Db
 			UpdateQuery(builder, update, filter, options);
 
 			var query = UpdateTemplate(builder, update, filter, options);
-			return Repository.ExecuteAsync(query);
+			return conn.ExecuteAsync(query, tran: tran);
 		}
 
 		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
@@ -65,6 +68,8 @@ namespace Simpleverse.Repository.Db
 			: base(repository, source)
 		{
 		}
+
+		#region Select
 
 		public virtual Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
@@ -99,6 +104,9 @@ namespace Simpleverse.Repository.Db
 		}
 
 		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
+			=> Repository.ExecuteAsync((conn, tran) => ListAsync<T>(conn, filter, options, transaction: tran));
+
+		public virtual Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 		{
 			var builder = Source.AsQuery();
 
@@ -108,19 +116,19 @@ namespace Simpleverse.Repository.Db
 			var type = typeof(T);
 			if (type.Name.StartsWith("ValueTuple`"))
 			{
-				var typeArguments = type.GenericTypeArguments;
-				var typeArgumentsCount = typeArguments.Count();
+				var tupleTypeArguments = type.GenericTypeArguments;
+				var typeArgumentsCount = tupleTypeArguments.Count();
 				if (typeArgumentsCount > 7)
 					throw new NotSupportedException("Number of Tuple arguments is more than the supported 7.");
 
-				return (Task<IEnumerable<T>>)Repository
-					.GetType()
-					.GetMethod(nameof(Repository.QueryAsync), typeArgumentsCount, new[] { query.GetType() })
+				return (Task<IEnumerable<T>>)
+					typeof(DbConnectionExtensions)
+					.GetMethod(nameof(DbConnectionExtensions.QueryAsync), typeArgumentsCount, new[] { typeof(IDbConnection), query.GetType(), typeof(IDbTransaction) })
 					.MakeGenericMethod(type.GenericTypeArguments)
-					.Invoke(Repository, new[] { query });
+					.Invoke(null, new object[] { connection, query, transaction });
 			}
 
-			return Repository.QueryAsync<T>(query);
+			return connection.QueryAsync<T>(query, tran: transaction);
 		}
 
 		protected virtual void SelectQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
@@ -133,6 +141,10 @@ namespace Simpleverse.Repository.Db
 		{
 			return builder.AsSelect(options: options);
 		}
+
+		#endregion
+
+		#region Delete
 
 		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
@@ -148,22 +160,39 @@ namespace Simpleverse.Repository.Db
 		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
 			=> Query(builder, filter);
 
+		protected virtual SqlBuilder.Template DeleteTemplate(QueryBuilder<TModel> builder, TOptions options)
+		{
+			return builder.AsDelete();
+		}
+
+		#endregion
+
 		protected void Query(QueryBuilder<TModel> builder, TFilter filter)
 		{
 			Join(builder, filter);
 			Filter(builder, filter);
 		}
 
-		protected virtual SqlBuilder.Template DeleteTemplate(QueryBuilder<TModel> builder, TOptions options)
-		{
-			return builder.AsDelete();
-		}
-
 		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
 
 		protected virtual void Join(QueryBuilder<TModel> builder, TFilter filter) { }
 
+		#region Min
+
 		public virtual Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup)
+			where TResult : struct
+		{
+			return Repository.ExecuteAsync(
+				(conn, tran) => MinAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
+			);
+		}
+
+		public virtual Task<TResult?> MinAsync<TResult>(
+			IDbConnection connection,
+			string columnName,
+			Action<TFilter> filterSetup,
+			IDbTransaction transaction = null
+		)
 			where TResult : struct
 		{
 			var builder = Source.AsQuery();
@@ -182,7 +211,24 @@ namespace Simpleverse.Repository.Db
 			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters));
 		}
 
+		#endregion
+
+		#region Max
+
 		public virtual Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup)
+			where TResult : struct
+		{
+			return Repository.ExecuteAsync(
+				(conn, tran) => MaxAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
+			);
+		}
+
+		public virtual Task<TResult?> MaxAsync<TResult>(
+			IDbConnection connection,
+			string columnName,
+			Action<TFilter> filterSetup,
+			IDbTransaction transaction = null
+		)
 			where TResult : struct
 		{
 			var builder = new QueryBuilder<TModel>();
@@ -199,8 +245,10 @@ namespace Simpleverse.Repository.Db
 					/**where**/
 			"
 			);
-			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters));
+			return connection.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters, transaction: transaction);
 		}
+
+		#endregion
 	}
 
 	public class Entity<T> : IAdd<T>, IUpdate<T>, IDelete<T>, IAggregate
