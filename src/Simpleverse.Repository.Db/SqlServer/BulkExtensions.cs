@@ -512,39 +512,20 @@ namespace Simpleverse.Repository.Db.SqlServer
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
-			var connectonWasClosed = connection.State == ConnectionState.Closed;
-			if (connectonWasClosed)
-				connection.Open();
-
-			var transactionWasClosed = transaction == null;
-			if (transactionWasClosed)
-				transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-
-			var result = default(R);
-			try
-			{
-				var (source, parameters) = await connection.BulkSourceAsync(
-					entities,
-					properties,
-					transaction: transaction,
-					sqlBulkCopy: sqlBulkCopy
-				);
-
-				result = await executor(connection, transaction, source, parameters, properties);
-			}
-			finally
-			{
-				if (transactionWasClosed)
+			return await connection.ExecuteAsyncWithTransaction(
+				async (conn, tran) =>
 				{
-					transaction.Commit();
-					transaction.Dispose();
-				}
+					var (source, parameters) = await connection.BulkSourceAsync(
+						entities,
+						properties,
+						transaction: tran,
+						sqlBulkCopy: sqlBulkCopy
+					);
 
-				if (connectonWasClosed)
-					connection.Close();
-			}
-
-			return result;
+					return await executor(connection, tran, source, parameters, properties);
+				},
+				transaction: transaction
+			);
 		}
 	}
 }

@@ -406,7 +406,7 @@ namespace Simpleverse.Repository.Db
 			if (!(Repository is SqlRepository))
 				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 
-			return connection.UpsertAsync(model, transaction: transaction);
+			return connection.UpsertAsync(model, outputMap: OutputMapper.MapOnce, transaction: transaction);
 		}
 
 		public async Task<int> UpsertAsync(

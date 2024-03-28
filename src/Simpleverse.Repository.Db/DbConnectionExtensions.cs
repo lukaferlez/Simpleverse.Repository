@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db
@@ -54,13 +53,37 @@ namespace Simpleverse.Repository.Db
 		public static Task<int> ExecuteAsync(this IDbConnection conn, SqlBuilder.Template query, IDbTransaction tran = null)
 			=> conn.ExecuteAsync(query.RawSql, param: query.Parameters, transaction: tran);
 
-		public static async Task<R> ExecuteAsyncWithTransaction<R>(this DbConnection conn, Func<DbConnection, DbTransaction, Task<R>> function)
+		public static async Task<R> ExecuteAsyncWithTransaction<R>(this IDbConnection conn, Func<IDbConnection, IDbTransaction, Task<R>> function, IDbTransaction transaction = null)
 		{
-			using (var tran = conn.BeginTransaction())
+			var connectonWasClosed = conn.State == ConnectionState.Closed;
+			if (connectonWasClosed)
+				conn.Open();
+
+			var transactionWasClosed = transaction == null;
+			if (transactionWasClosed)
+				transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+			try
 			{
-				var result = await function(conn, tran);
-				tran.Commit();
+				var result = await function(conn, transaction);
+				if (transactionWasClosed)
+					transaction.Commit();
+
 				return result;
+			}
+			catch
+			{
+				if (transactionWasClosed)
+					transaction.Rollback();
+				throw;
+			}
+			finally
+			{
+				if (transactionWasClosed)
+					transaction.Dispose();
+
+				if (connectonWasClosed)
+					conn.Close();
 			}
 		}
 	}

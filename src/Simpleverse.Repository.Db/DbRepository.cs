@@ -2,6 +2,7 @@
 using Simpleverse.Repository.Db.Meta;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
@@ -74,7 +75,7 @@ namespace Simpleverse.Repository.Db
 		public Task<int> ExecuteAsync(SqlBuilder.Template query)
 			=> ExecuteAsync((conn, tran) => conn.ExecuteAsync(query, tran: tran));
 
-		public async Task<R> ExecuteAsync<R>(Func<DbConnection, DbTransaction, Task<R>> function)
+		public async Task<R> ExecuteAsync<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
 		{
 			using (var conn = Connection)
 			{
@@ -83,7 +84,7 @@ namespace Simpleverse.Repository.Db
 			}
 		}
 
-		public Task<R> ExecuteAsyncWithTransaction<R>(Func<DbConnection, DbTransaction, Task<R>> function)
+		public Task<R> ExecuteAsyncWithTransaction<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
 		{
 			return ExecuteAsync(
 				(conn, _) => conn.ExecuteAsyncWithTransaction(function)
