@@ -180,13 +180,13 @@ namespace Simpleverse.Repository.Db
 
 		#region Replace
 
-		public Task<(int Deleted, int Added)> Replace(
+		public Task<(int Deleted, int Added)> ReplaceAsync(
 			Action<TFilter> filterSetup,
 			IEnumerable<TModel> models
 		)
-			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => Replace(conn, tran, filterSetup, models));
+			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => ReplaceAsync(conn, tran, filterSetup, models));
 
-		public virtual Task<(int Deleted, int Added)> Replace(
+		public virtual Task<(int Deleted, int Added)> ReplaceAsync(
 			IDbConnection conn,
 			IDbTransaction tran,
 			Action<TFilter> filterSetup,

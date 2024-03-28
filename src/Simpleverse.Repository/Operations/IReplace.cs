@@ -8,7 +8,7 @@ namespace Simpleverse.Repository.Operations
 		where TModel : class
 		where TFilter : IQueryFilter, new()
 	{
-		Task<(int Deleted, int Added)> Replace(
+		Task<(int Deleted, int Added)> ReplaceAsync(
 			Action<TFilter> filterSetup,
 			IEnumerable<TModel> models
 		);
