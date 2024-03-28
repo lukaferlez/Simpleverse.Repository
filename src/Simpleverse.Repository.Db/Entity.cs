@@ -64,7 +64,8 @@ namespace Simpleverse.Repository.Db
 			IQueryExistDb<TFilter>,
 			IQueryGetDb<TModel, TFilter, TOptions>,
 			IQueryListDb<TModel, TFilter, TOptions>,
-			IDeleteDb<TModel, TFilter, TOptions>
+			IDeleteDb<TModel, TFilter, TOptions>,
+			IReplaceDb<TModel, TFilter>
 		where TModel : class
 		where TFilter : class, IQueryFilter, new()
 		where TOptions : DbQueryOptions, new()
@@ -173,6 +174,48 @@ namespace Simpleverse.Repository.Db
 		protected virtual SqlBuilder.Template SelectTemplate(QueryBuilder<TModel> builder, TOptions options)
 		{
 			return builder.AsSelect(options: options);
+		}
+
+		#endregion
+
+		#region Replace
+
+		public Task<(int Deleted, int Added)> Replace(
+			Action<TFilter> filterSetup,
+			IEnumerable<TModel> models
+		)
+			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => Replace(conn, tran, filterSetup, models));
+
+		public virtual Task<(int Deleted, int Added)> Replace(
+			IDbConnection conn,
+			IDbTransaction tran,
+			Action<TFilter> filterSetup,
+			IEnumerable<TModel> models
+		)
+		{
+			return conn.ExecuteAsyncWithTransaction(
+				async (conn, tran) =>
+				{
+					var deleted = await DeleteAsync(
+						conn,
+						filterSetup,
+						transaction: tran
+					);
+
+					if (models == null)
+						return (deleted, 0);
+
+					var added = await AddAsync(
+						conn,
+						models,
+						outputMap: OutputMapper.Map,
+						transaction: tran
+					);
+
+					return (deleted, added);
+				},
+				transaction: tran
+			);
 		}
 
 		#endregion
