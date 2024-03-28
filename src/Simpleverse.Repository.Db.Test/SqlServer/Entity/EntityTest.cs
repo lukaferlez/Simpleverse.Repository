@@ -1,14 +1,14 @@
 ﻿using Dapper.Contrib.Extensions;
-using System.Linq;
 using Simpleverse.Repository.Db.Extensions;
 using Simpleverse.Repository.Db.Extensions.Dapper;
-using Xunit;
-using Xunit.Abstractions;
-using System;
-using System.Transactions;
 using Simpleverse.Repository.Db.SqlServer;
 using StackExchange.Profiling.Data;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Transactions;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 {
@@ -76,7 +76,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			// assert
 			using (var connection = _fixture.GetConnection())
 			{
-				
+
 				var records = connection.GetAll<Identity>();
 				Assert.Equal(10, recordCount);
 				Assert.Equal(10, records.Count());
@@ -120,7 +120,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			var entity = new IdentityEntity(_fixture);
 
 			// act
-			var exception = Assert.Throws<NotSupportedException>(
+			var exception = Assert.ThrowsAsync<NotSupportedException>(
 					() => entity.ListAsync<(
 						Identity identity1,
 						Identity identity2,
@@ -130,8 +130,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 						Identity identity6,
 						Identity identity7,
 						Identity identity8
-					)>().Result
-				);
+					)>()
+				).Result;
 
 			Assert.Equal("Number of Tuple arguments is more than the supported 7.", exception.Message);
 		}
@@ -274,9 +274,9 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 		}
 
-        public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
+		public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
 
-        protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
+		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
 		{
 			var explicitKey = new Table<ExplicitKey>("EK");
 
@@ -293,7 +293,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 
 		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
 		{
-			builder.Where(x=> x.Name, filter.Name);
+			builder.Where(x => x.Name, filter.Name);
 			base.Filter(builder, filter);
 		}
 	}
