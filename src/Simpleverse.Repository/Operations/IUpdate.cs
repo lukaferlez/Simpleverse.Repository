@@ -8,7 +8,7 @@ namespace Simpleverse.Repository.Operations
 	public interface IUpdate<T>
 		where T : class
 	{
-		Task<bool> UpdateAsync(T model);
+		Task<int> UpdateAsync(T model, Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null);
 		Task<int> UpdateAsync(IEnumerable<T> models, Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null);
 	}
 

@@ -10,7 +10,6 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IAddDb<T> : IAdd<T>
 		where T : class
 	{
-		Task<int> AddAsync(IDbConnection connection, T model, IDbTransaction transaction = null);
 		Task<int> AddAsync(
 			IDbConnection connection,
 			IEnumerable<T> models,

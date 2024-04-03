@@ -10,8 +10,12 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IUpdateDb<T> : IUpdate<T>
 		where T : class
 	{
-		Task<bool> UpdateAsync(IDbConnection connection, T model, IDbTransaction transaction = null);
-		Task<int> UpdateAsync(IDbConnection connection, IEnumerable<T> models, Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null, IDbTransaction transaction = null);
+		Task<int> UpdateAsync(
+			IDbConnection connection,
+			IEnumerable<T> models,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		);
 	}
 
 	public interface IUpdateDb<TUpdate, TFilter, TOptions> : IUpdate<TUpdate, TFilter, TOptions>

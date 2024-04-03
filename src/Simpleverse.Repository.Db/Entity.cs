@@ -334,7 +334,7 @@ namespace Simpleverse.Repository.Db
 		#endregion
 	}
 
-	public class Entity<T> : IAddDb<T>, IUpdateDb<T>, IDeleteDb<T>, IAggregateDb
+	public class Entity<T> : IAddDb<T>, IUpdateDb<T>, IDeleteDb<T>, IAggregateDb, IUpsertDb<T>
 		where T : class
 	{
 		protected DbRepository Repository { get; }
@@ -359,12 +359,15 @@ namespace Simpleverse.Repository.Db
 
 		#region Add
 
-		public async Task<int> AddAsync(T model)
+		public async Task<int> AddAsync(
+			T model,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
-			return await Repository.ExecuteAsync((conn, tran) => AddAsync(conn, model, transaction: tran));
+			return await Repository.ExecuteAsync(
+				(conn, tran) => AddAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			);
 		}
-		public virtual Task<int> AddAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
-			=> connection.InsertAsync(model, transaction: transaction);
 
 		public async Task<int> AddAsync(
 			IEnumerable<T> models,
@@ -398,13 +401,15 @@ namespace Simpleverse.Repository.Db
 
 		#region Update
 
-		public async Task<bool> UpdateAsync(T model)
+		public async Task<int> UpdateAsync(
+			T model,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
-			return await Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, model, transaction: tran));
+			return await Repository.ExecuteAsync(
+				(conn, tran) => UpdateAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			);
 		}
-		public virtual Task<bool> UpdateAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
-			=> connection.UpdateAsync(model, transaction: transaction);
-
 		public async Task<int> UpdateAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -438,20 +443,15 @@ namespace Simpleverse.Repository.Db
 
 		#region Upsert
 
-		public async Task<int> UpsertAsync(T model)
+		public async Task<int> UpsertAsync(
+			T model,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
 		{
 			return await Repository.ExecuteAsync(
-				(conn, tran) => UpsertAsync(conn, model, transaction: tran)
+				(conn, tran) => UpsertAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
 			);
 		}
-		public virtual Task<int> UpsertAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
-		{
-			if (!(Repository is SqlRepository))
-				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
-
-			return connection.UpsertAsync(model, outputMap: OutputMapper.MapOnce, transaction: transaction);
-		}
-
 		public async Task<int> UpsertAsync(
 			IEnumerable<T> models,
 			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -471,7 +471,7 @@ namespace Simpleverse.Repository.Db
 			if (!(Repository is SqlRepository))
 				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 
-			return connection.UpsertBulkAsync(models, transaction: transaction);
+			return connection.UpsertBulkAsync(models, transaction: transaction, outputMap: outputMap);
 		}
 
 		#endregion
