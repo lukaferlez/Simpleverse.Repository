@@ -1,13 +1,11 @@
 ﻿using Dapper;
 using EnumsNET;
-using Microsoft.Identity.Client;
 using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Security.Cryptography;
 
 namespace Simpleverse.Repository.Db.Extensions.Dapper
 {
@@ -239,10 +237,11 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 			if (typeof(T).IsDefined(typeof(FlagsAttribute), false))
 			{
 				var flags = value.GetFlags();
-				
+
 				var elements = flags.Select(
-					(flag, index) => {
-						var parameterName = DbRepository.ParameterName($"{column.Column}_{index+1}", alias: column.TableAlias);
+					(flag, index) =>
+					{
+						var parameterName = DbRepository.ParameterName($"{column.Column}_{index + 1}", alias: column.TableAlias);
 
 						return new
 						{

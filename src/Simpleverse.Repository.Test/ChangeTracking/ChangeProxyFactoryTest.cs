@@ -13,13 +13,9 @@ namespace Simpleverse.Repository.Test.ChangeTracking
 			proxy.IntNullableProperty = null;
 
 			var changeTracker = (IChangeTrack)proxy;
-			Assert.Equal(2, changeTracker.Changes.Count());
-
-			Assert.Single(changeTracker.Changes.Where(x => x.name == nameof(TestInterface.IntProperty)));
-			Assert.Equal(1, changeTracker.Changes.First(x => x.name == nameof(TestInterface.IntProperty)).value);
-
-			Assert.Single(changeTracker.Changes.Where(x => x.name == nameof(TestInterface.IntNullableProperty)));
-			Assert.Null(changeTracker.Changes.First(x => x.name == nameof(TestInterface.IntNullableProperty)).value);
+			Assert.Equal(2, changeTracker.Changed.Count());
+			Assert.Single(changeTracker.Changed.Where(x => x == nameof(TestInterface.IntProperty)));
+			Assert.Single(changeTracker.Changed.Where(x => x == nameof(TestInterface.IntNullableProperty)));
 		}
 
 		[Fact]
@@ -31,25 +27,15 @@ namespace Simpleverse.Repository.Test.ChangeTracking
 			proxy.IntNullableProperty = null;
 
 			var changeTracker = (IChangeTrack)proxy;
-			Assert.Equal(2, changeTracker.Changes.Count());
-
-			Assert.Single(changeTracker.Changes.Where(x => x.name == nameof(TestInterface.IntProperty)));
-			Assert.Equal(1, changeTracker.Changes.First(x => x.name == nameof(TestInterface.IntProperty)).value);
-
-			Assert.Single(changeTracker.Changes.Where(x => x.name == nameof(TestInterface.IntNullableProperty)));
-			Assert.Null(changeTracker.Changes.First(x => x.name == nameof(TestInterface.IntNullableProperty)).value);
+			Assert.Equal(2, changeTracker.Changed.Count());
+			Assert.Single(changeTracker.Changed.Where(x => x == nameof(TestInterface.IntProperty)));
+			Assert.Single(changeTracker.Changed.Where(x => x == nameof(TestInterface.IntNullableProperty)));
 		}
 
 		[Fact]
 		public void FailCreateProxyNoParameterlessConstructor()
 		{
 			Assert.Throws<NotSupportedException>(() => ChangeProxyFactory.Create<TestClassNoParameterlessConstructor>());
-		}
-
-		[Fact]
-		public void FailCreateProxyNoVirtual()
-		{
-			Assert.Throws<NotSupportedException>(() => ChangeProxyFactory.Create<TestClassNoVirtual>());
 		}
 
 		[Fact]
@@ -62,9 +48,8 @@ namespace Simpleverse.Repository.Test.ChangeTracking
 
 			var changeTracker = (IChangeTrack)proxy;
 
-			Assert.Single(changeTracker.Changes);
-			Assert.Single(changeTracker.Changes.Where(x => x.name == nameof(TestInterface.IntNullableProperty)));
-			Assert.Equal(2, changeTracker.Changes.First(x => x.name == nameof(TestInterface.IntNullableProperty)).value);
+			Assert.Single(changeTracker.Changed);
+			Assert.Single(changeTracker.Changed.Where(x => x == nameof(TestInterface.IntNullableProperty)));
 		}
 	}
 

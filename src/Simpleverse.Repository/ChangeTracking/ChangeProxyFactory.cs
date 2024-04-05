@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -60,11 +59,13 @@ namespace Simpleverse.Repository.ChangeTracking
 			var typeofIChangeTrack = typeof(IChangeTrack);
 			builder.AddInterfaceImplementation(typeofIChangeTrack);
 
-			var changesFieldInfo = builder.DefineField("_changes", typeof(ChangeTrack), FieldAttributes.Private);
+			var typeOfChangeTrack = typeof(ChangeTrack);
+			var changesFieldInfo = builder.DefineField("_changes", typeOfChangeTrack, FieldAttributes.Private);
 
 			builder.AddConstructor(typeOfT, changesFieldInfo);
-			builder.AddChangesProperty(changesFieldInfo);
-			var trackMethod = builder.AddTrackMethod(changesFieldInfo);
+			builder.AddChangesFieldRedirectProperty(changesFieldInfo, typeOfChangeTrack.GetProperty(nameof(IChangeTrack.IsChanged)));
+			builder.AddChangesFieldRedirectProperty(changesFieldInfo, typeOfChangeTrack.GetProperty(nameof(IChangeTrack.Changed)));
+			var trackMethod = builder.AddSetChangedMethod(changesFieldInfo);
 			builder.AddClearMethod(changesFieldInfo);
 
 			return trackMethod;
@@ -95,13 +96,13 @@ namespace Simpleverse.Repository.ChangeTracking
 			emitter.Emit(OpCodes.Ret);
 		}
 
-		private static void AddChangesProperty(this TypeBuilder builder, FieldInfo changesField)
+		private static void AddChangesFieldRedirectProperty(this TypeBuilder builder, FieldInfo changesField, PropertyInfo propertyInfo)
 		{
 			var property = builder.DefineProperty(
-				nameof(IChangeTrack.Changes),
+				propertyInfo.Name,
 				PropertyAttributes.None,
-				typeof(IEnumerable<(string Name, object Value)>),
-				Type.EmptyTypes
+				propertyInfo.PropertyType,
+				propertyInfo.CanWrite ? new Type[] { propertyInfo.PropertyType } : Type.EmptyTypes
 			);
 
 			const MethodAttributes getSetAttr =
@@ -120,11 +121,11 @@ namespace Simpleverse.Repository.ChangeTracking
 			var currGetIl = currGetPropMthdBldr.GetILGenerator();
 			currGetIl.Emit(OpCodes.Ldarg_0);
 			currGetIl.Emit(OpCodes.Ldfld, changesField);
-			currGetIl.Emit(OpCodes.Callvirt, changesField.FieldType.GetProperty(nameof(IChangeTrack.Changes)).GetGetMethod());
+			currGetIl.Emit(OpCodes.Callvirt, propertyInfo.GetGetMethod());
 			currGetIl.Emit(OpCodes.Ret);
 		}
 
-		private static MethodInfo AddTrackMethod(this TypeBuilder builder, FieldInfo changesField)
+		private static MethodInfo AddSetChangedMethod(this TypeBuilder builder, FieldInfo changesField)
 		{
 			const MethodAttributes getSetAttr =
 				MethodAttributes.Private
@@ -132,18 +133,17 @@ namespace Simpleverse.Repository.ChangeTracking
 				| MethodAttributes.HideBySig;
 
 			var method = builder.DefineMethod(
-				nameof(ChangeTrack.Track),
+				nameof(ChangeTrack.SetChanged),
 				getSetAttr,
 				typeof(void),
-				new[] { typeof(string), typeof(object) }
+				new[] { typeof(string) }
 			);
 
 			var ilGen = method.GetILGenerator();
 			ilGen.Emit(OpCodes.Ldarg_0);
 			ilGen.Emit(OpCodes.Ldfld, changesField);
 			ilGen.Emit(OpCodes.Ldarg_1);
-			ilGen.Emit(OpCodes.Ldarg_2);
-			ilGen.Emit(OpCodes.Callvirt, changesField.FieldType.GetMethod(nameof(ChangeTrack.Track)));
+			ilGen.Emit(OpCodes.Callvirt, changesField.FieldType.GetMethod(nameof(ChangeTrack.SetChanged)));
 			ilGen.Emit(OpCodes.Ret);
 
 			return method;
@@ -294,9 +294,6 @@ namespace Simpleverse.Repository.ChangeTracking
 		{
 			setMethodIl.Emit(OpCodes.Ldarg_0);
 			setMethodIl.Emit(OpCodes.Ldstr, propertyName);
-			setMethodIl.Emit(OpCodes.Ldarg_1);
-			if (propertyType.IsValueType)
-				setMethodIl.Emit(OpCodes.Box, propertyType);
 			setMethodIl.Emit(OpCodes.Call, onChangeMethod);
 		}
 

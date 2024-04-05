@@ -5,20 +5,23 @@ namespace Simpleverse.Repository.ChangeTracking
 {
 	public class ChangeTrack : IChangeTrack
 	{
-		private Dictionary<string, object> _changes;
+		private HashSet<string> _changed;
+
+		public bool IsChanged
+			=> _changed.Count > 0;
+
+		public IEnumerable<string> Changed
+			=> _changed.ToArray();
 
 		public ChangeTrack()
 		{
 			Clear();
 		}
 
-		public void Track(string name, object value)
-			=> _changes[name] = value;
-
-		public IEnumerable<(string name, object value)> Changes
-			=> _changes.Select(x => (x.Key, x.Value)).ToArray();
+		public void SetChanged(string name)
+			=> _changed.Add(name);
 
 		public void Clear()
-			=> _changes = new Dictionary<string, object>();
+			=> _changed = new HashSet<string>();
 	}
 }

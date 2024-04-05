@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class InsertTests : TestFixture
+	public class InsertTests : DatabaseTestFixture
 	{
 		public InsertTests(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)

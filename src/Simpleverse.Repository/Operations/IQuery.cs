@@ -3,7 +3,7 @@
 	public interface IQuery<TModel, TFilter, TOptions>
 		: IQueryExist<TFilter>, IQueryGet<TModel, TFilter, TOptions>, IQueryList<TModel, TFilter, TOptions>
 		where TModel : class
-		where TFilter : IQueryFilter, new()
+		where TFilter : class
 		where TOptions : QueryOptions, new()
 	{
 	}

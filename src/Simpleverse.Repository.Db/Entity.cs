@@ -1,5 +1,7 @@
 ﻿using Dapper;
 using Dapper.Contrib.Extensions;
+using Simpleverse.Repository.ChangeTracking;
+using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.Operations;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
@@ -14,68 +16,43 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db
 {
-	public class Entity<TModel, TUpdate, TFilter, TOptions> : Entity<TModel, TFilter, TOptions>, IUpdate<TUpdate, TFilter, TOptions>
-		where TModel : class
-		where TUpdate : class, IQueryFilter, new()
-		where TFilter : class, IQueryFilter, new()
-		where TOptions : DbQueryOptions, new()
-	{
-		public Entity(DbRepository repository, Table<TModel> source)
-			: base(repository, source)
-		{
-		}
-
-		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup, tran));
-
-		public virtual Task<int> UpdateAsync(IDbConnection conn, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction tran = null)
-		{
-			var update = updateSetup.Get();
-			var filter = filterSetup.Get();
-			var options = optionsSetup.Get();
-
-			var builder = Source.AsQuery();
-			UpdateQuery(builder, update, filter, options);
-
-			var query = UpdateTemplate(builder, update, filter, options);
-			return conn.ExecuteAsync(query, tran: tran);
-		}
-
-		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
-		{
-			Set(builder, update);
-			Query(builder, filter);
-		}
-
-		protected virtual SqlBuilder.Template UpdateTemplate(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
-		{
-			return builder.AsUpdate();
-		}
-
-		protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
-		{
-			if (update is UpdateOptions<TModel> updateOptions)
-				updateOptions.Apply(builder);
-		}
-	}
-
-	public class Entity<TModel, TFilter, TOptions>
-		: Entity<TModel>,
+	public class Entity<TModel, TUpdate, TFilter, TOptions>
+		:
+			IAddDb<TModel>,
+			IUpdateDb<TModel>,
+			IDeleteDb<TModel>,
+			IAggregateDb,
+			IUpsertDb<TModel>,
 			IQueryExistDb<TFilter>,
 			IQueryGetDb<TModel, TFilter, TOptions>,
 			IQueryListDb<TModel, TFilter, TOptions>,
 			IDeleteDb<TModel, TFilter, TOptions>,
-			IReplaceDb<TModel, TFilter>
+			IReplaceDb<TModel, TFilter>,
+			IUpdate<TUpdate, TFilter, TOptions>
 		where TModel : class
-		where TFilter : class, IQueryFilter, new()
+		where TUpdate : class
+		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
+		protected DbRepository Repository { get; }
+		protected Table<TModel> Source { get; }
+
 		public Entity(DbRepository repository, Table<TModel> source)
-			: base(repository, source)
 		{
+			Repository = repository;
+			Source = source;
 		}
 
+		#region Fetch
+
 		#region Get
+
+		public async Task<TModel> GetAsync(dynamic id)
+		{
+			return await Repository.ExecuteAsync<TModel>((conn, tran) => GetAsync(conn, id, transaction: tran));
+		}
+		public virtual Task<TModel> GetAsync(IDbConnection connection, dynamic id, IDbTransaction transaction = null)
+			=> SqlMapperExtensions.GetAsync<TModel>(connection, id, transaction: transaction);
 
 		public Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> GetAsync<TModel>(filterSetup, optionsSetup);
@@ -117,7 +94,7 @@ namespace Simpleverse.Repository.Db
 
 		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
-			var filter = filterSetup.Get();
+			var filter = GetFilter(filterSetup);
 			var options = optionsSetup.Get();
 			return ListAsync<T>(filter, options);
 		}
@@ -128,7 +105,7 @@ namespace Simpleverse.Repository.Db
 			IDbTransaction transaction = null
 		)
 		{
-			var filter = filterSetup.Get();
+			var filter = GetFilter(filterSetup);
 			var options = optionsSetup.Get();
 			return ListAsync<T>(connection, filter, options, transaction: transaction);
 		}
@@ -178,6 +155,356 @@ namespace Simpleverse.Repository.Db
 
 		#endregion
 
+		protected void Query(QueryBuilder<TModel> builder, TFilter filter)
+		{
+			Join(builder, filter);
+			Filter(builder, filter);
+		}
+
+		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
+
+		protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
+		{
+			return filterSetup.Get(() => Activator.CreateInstance<TFilter>());
+		}
+
+		#endregion
+
+		#region Add
+
+		public async Task<int> AddAsync(
+			TModel model,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsync(
+				(conn, tran) => AddAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			);
+		}
+
+		public async Task<int> AddAsync(
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsyncWithTransaction(
+				(conn, tran) => AddAsync(conn, models, outputMap: outputMap, transaction: tran)
+			);
+		}
+		public virtual Task<int> AddAsync(
+			IDbConnection connection,
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (Repository is SqlRepository)
+			{
+				return connection.InsertBulkAsync(
+					models,
+					transaction: transaction,
+					outputMap: outputMap
+				);
+			}
+
+			return connection.InsertAsync(models, transaction: transaction);
+		}
+
+		#endregion
+
+		#region Update
+
+		#region ByModel
+
+		public async Task<int> UpdateAsync(
+			TModel model,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsync(
+				(conn, tran) => UpdateAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			);
+		}
+		public async Task<int> UpdateAsync(
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsyncWithTransaction(
+				(conn, tran) => UpdateAsync(conn, models, outputMap: outputMap, transaction: tran)
+			);
+		}
+		public virtual async Task<int> UpdateAsync(
+			IDbConnection connection,
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (Repository is SqlRepository)
+			{
+				return await connection.UpdateBulkAsync(
+					models,
+					transaction: transaction,
+					outputMap: outputMap
+				);
+			}
+
+			var sucess = await connection.UpdateAsync(models, transaction: transaction);
+			return models.Count();
+		}
+
+		#endregion
+
+		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup, tran));
+
+		public virtual Task<int> UpdateAsync(IDbConnection conn, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction tran = null)
+		{
+			var update = GetUpdate(updateSetup);
+			var filter = GetFilter(filterSetup);
+			var options = optionsSetup.Get();
+
+			var builder = Source.AsQuery();
+			UpdateQuery(builder, update, filter, options);
+
+			var query = UpdateTemplate(builder, update, filter, options);
+			return conn.ExecuteAsync(query, tran: tran);
+		}
+
+		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
+		{
+			Set(builder, update);
+			Query(builder, filter);
+		}
+
+		protected virtual SqlBuilder.Template UpdateTemplate(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
+		{
+			return builder.AsUpdate();
+		}
+
+		protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
+		{
+			if (update is UpdateOptions<TModel> updateOptions)
+				updateOptions.Apply(builder);
+		}
+
+		protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
+		{
+			return updateSetup.Get(() => Activator.CreateInstance<TUpdate>());
+		}
+
+		#endregion
+
+		#region Upsert
+
+		public async Task<int> UpsertAsync(
+			TModel model,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsync(
+				(conn, tran) => UpsertAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			);
+		}
+		public async Task<int> UpsertAsync(
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+		)
+		{
+			return await Repository.ExecuteAsyncWithTransaction(
+				(conn, tran) => UpsertAsync(conn, models, outputMap: outputMap, transaction: tran)
+			);
+		}
+		public virtual Task<int> UpsertAsync(
+			IDbConnection connection,
+			IEnumerable<TModel> models,
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			IDbTransaction transaction = null
+		)
+		{
+			if (!(Repository is SqlRepository))
+				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
+
+			return connection.UpsertBulkAsync(models, transaction: transaction, outputMap: outputMap);
+		}
+
+		#endregion
+
+		#region Delete
+
+		#region ByModel
+
+		public async Task<bool> DeleteAsync(TModel model)
+		{
+			return await Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, model, transaction: tran));
+		}
+		public virtual Task<bool> DeleteAsync(IDbConnection connection, TModel model, IDbTransaction transaction = null)
+			=> connection.DeleteAsync(model, transaction: transaction);
+
+		public async Task<int> DeleteAsync(IEnumerable<TModel> models)
+		{
+			return await Repository.ExecuteAsyncWithTransaction(
+				(conn, tran) => DeleteAsync(conn, models, transaction: tran)
+			);
+		}
+		public virtual async Task<int> DeleteAsync(IDbConnection connection, IEnumerable<TModel> models, IDbTransaction transaction = null)
+		{
+			if (Repository is SqlRepository)
+			{
+				return await connection.DeleteBulkAsync(
+					models,
+					transaction: transaction
+				);
+			}
+
+			var sucess = await connection.DeleteAsync(models, transaction: transaction);
+			return models.Count();
+		}
+
+		#endregion
+
+		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, filterSetup, optionsSetup, transaction: tran));
+		public virtual Task<int> DeleteAsync(
+			IDbConnection connection,
+			Action<TFilter> filterSetup = null,
+			Action<TOptions> optionsSetup = null,
+			IDbTransaction transaction = null
+		)
+		{
+			var filter = GetFilter(filterSetup);
+			var options = optionsSetup.Get();
+			var builder = Source.AsQuery();
+			DeleteQuery(builder, filter, options);
+
+			var query = DeleteTemplate(builder, options);
+			return connection.ExecuteAsync(query, tran: transaction);
+		}
+
+		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
+			=> Query(builder, filter);
+
+		protected virtual SqlBuilder.Template DeleteTemplate(QueryBuilder<TModel> builder, TOptions options)
+		{
+			return builder.AsDelete();
+		}
+
+		#endregion
+
+		#region Min		
+
+		public Task<TResult?> MinAsync<TResult>(string columnName)
+			where TResult : struct
+			=> MinAsync<TResult>(Source.Column(columnName));
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MinAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+
+		public Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression)
+			where TResult : struct
+			=> MinAsync<TResult>(Source.Column(columnExpression));
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MinAsync<TResult>(connection, Source.Column(columnExpression), transaction: transaction);
+
+		protected virtual Task<TResult?> MinAsync<TResult>(Selector column)
+			where TResult : struct
+			=> Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
+		protected virtual Task<TResult?> MinAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
+			where TResult : struct
+			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
+
+		public virtual Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup)
+			where TResult : struct
+		{
+			return Repository.ExecuteAsync(
+				(conn, tran) => MinAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
+			);
+		}
+		public virtual Task<TResult?> MinAsync<TResult>(
+			IDbConnection connection,
+			string columnName,
+			Action<TFilter> filterSetup,
+			IDbTransaction transaction = null
+		)
+			where TResult : struct
+		{
+			var builder = Source.AsQuery();
+			var query = builder.AddTemplate($@"
+				SELECT {Source.Column(columnName).Min()}
+				FROM
+					{Source}
+					/**join**/
+					/**innerjoin**/
+					/**leftjoin**/
+					/**rightjoin**/
+				/**where**/
+			");
+
+			Filter(builder, GetFilter(filterSetup));
+			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters));
+		}
+
+		#endregion
+
+		#region Max
+
+		public Task<TResult?> MaxAsync<TResult>(string columnName)
+			where TResult : struct
+			=> MaxAsync<TResult>(Source.Column(columnName));
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+
+		public Task<TResult?> MaxAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression)
+			where TResult : struct
+			=> MaxAsync<TResult>(Source.Column(columnExpression));
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), transaction);
+
+		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column)
+			where TResult : struct
+			=> Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
+		protected virtual Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
+			where TResult : struct
+			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
+
+		public virtual Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup)
+			where TResult : struct
+		{
+			return Repository.ExecuteAsync(
+				(conn, tran) => MaxAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
+			);
+		}
+		public virtual Task<TResult?> MaxAsync<TResult>(
+			IDbConnection connection,
+			string columnName,
+			Action<TFilter> filterSetup,
+			IDbTransaction transaction = null
+		)
+			where TResult : struct
+		{
+			var builder = new QueryBuilder<TModel>();
+			Filter(builder, GetFilter(filterSetup));
+
+			var query = builder.AddTemplate($@"
+					SELECT {Source.Column(columnName).Max()}
+					FROM
+						{Source}
+						/**join**/
+						/**innerjoin**/
+						/**leftjoin**/
+						/**rightjoin**/
+					/**where**/
+			"
+			);
+			return connection.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters, transaction: transaction);
+		}
+
+		#endregion
+
 		#region Replace
 
 		public Task<(int Deleted, int Added)> ReplaceAsync(
@@ -220,341 +547,136 @@ namespace Simpleverse.Repository.Db
 
 		#endregion
 
-		#region Delete
-
-		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, filterSetup, optionsSetup, transaction: tran));
-		public virtual Task<int> DeleteAsync(
-			IDbConnection connection,
-			Action<TFilter> filterSetup = null,
-			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
-		)
-		{
-			var filter = filterSetup.Get();
-			var options = optionsSetup.Get();
-			var builder = Source.AsQuery();
-			DeleteQuery(builder, filter, options);
-
-			var query = DeleteTemplate(builder, options);
-			return connection.ExecuteAsync(query, tran: transaction);
-		}
-
-		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
-			=> Query(builder, filter);
-
-		protected virtual SqlBuilder.Template DeleteTemplate(QueryBuilder<TModel> builder, TOptions options)
-		{
-			return builder.AsDelete();
-		}
-
-		#endregion
-
-		protected void Query(QueryBuilder<TModel> builder, TFilter filter)
-		{
-			Join(builder, filter);
-			Filter(builder, filter);
-		}
-
-		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
-
 		protected virtual void Join(QueryBuilder<TModel> builder, TFilter filter) { }
 
-		#region Min
-
-		public virtual Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup)
-			where TResult : struct
+		protected void IfChanged<T, R>(T filter, Expression<Func<T, R>> expression, Action action)
 		{
-			return Repository.ExecuteAsync(
-				(conn, tran) => MinAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
-			);
+			if (filter is IChangeTrack changeTrack)
+			{
+				var name = ExpressionHelper.GetMemberName(expression);
+				if (changeTrack.Changed.Contains(name))
+					action();
+			}
 		}
-
-		public virtual Task<TResult?> MinAsync<TResult>(
-			IDbConnection connection,
-			string columnName,
-			Action<TFilter> filterSetup,
-			IDbTransaction transaction = null
-		)
-			where TResult : struct
-		{
-			var builder = Source.AsQuery();
-			var query = builder.AddTemplate($@"
-				SELECT {Source.Column(columnName).Min()}
-				FROM
-					{Source}
-					/**join**/
-					/**innerjoin**/
-					/**leftjoin**/
-					/**rightjoin**/
-				/**where**/
-			");
-
-			Filter(builder, filterSetup.Get());
-			return Repository.ExecuteAsync((conn, tran) => conn.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters));
-		}
-
-		#endregion
-
-		#region Max
-
-		public virtual Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup)
-			where TResult : struct
-		{
-			return Repository.ExecuteAsync(
-				(conn, tran) => MaxAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
-			);
-		}
-
-		public virtual Task<TResult?> MaxAsync<TResult>(
-			IDbConnection connection,
-			string columnName,
-			Action<TFilter> filterSetup,
-			IDbTransaction transaction = null
-		)
-			where TResult : struct
-		{
-			var builder = new QueryBuilder<TModel>();
-			Filter(builder, filterSetup.Get());
-
-			var query = builder.AddTemplate($@"
-					SELECT {Source.Column(columnName).Max()}
-					FROM
-						{Source}
-						/**join**/
-						/**innerjoin**/
-						/**leftjoin**/
-						/**rightjoin**/
-					/**where**/
-			"
-			);
-			return connection.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters, transaction: transaction);
-		}
-
-		#endregion
 	}
 
-	public class Entity<T> : IAddDb<T>, IUpdateDb<T>, IDeleteDb<T>, IAggregateDb, IUpsertDb<T>
+	public class Entity<TModel, TFilter, TOptions> : Entity<TModel, TModel, TFilter, TOptions>
+		where TModel : class
+		where TFilter : class
+		where TOptions : DbQueryOptions, new()
+	{
+		public Entity(DbRepository repository, Table<TModel> source)
+			: base(repository, source)
+		{
+		}
+
+		protected override TModel GetUpdate(Action<TModel> updateSetup)
+		{
+			return updateSetup.Get(
+				() => ChangeProxyFactory.Create<TModel>()
+			);
+		}
+
+		protected override void Set(QueryBuilder<TModel> builder, TModel update)
+		{
+			base.Set(builder, update);
+
+			var changeTrack = update as IChangeTrack;
+			if (changeTrack == null)
+				return;
+
+			foreach (var propertyName in changeTrack.Changed)
+			{
+				var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
+				if (property is null)
+					continue;
+
+				var column = builder.Table.Column(property.Name);
+				var value = property.GetValue(update);
+
+				if (value is string stringValue)
+				{
+					builder.Set(
+						column,
+						stringValue
+					);
+				}
+				else if (value is DateTime dateTimeValue)
+				{
+					builder.Set(
+						column,
+						dateTimeValue
+					);
+				}
+				else
+				{
+					builder.Set(
+						column,
+						value
+					);
+				}
+			}
+		}
+	}
+
+	public class Entity<T> : Entity<T, T, DbQueryOptions>
 		where T : class
 	{
-		protected DbRepository Repository { get; }
-		protected Table<T> Source { get; }
-
 		public Entity(DbRepository repository, Table<T> source)
+			: base(repository, source)
 		{
-			Repository = repository;
-			Source = source;
 		}
 
-		#region Get
-
-		public async Task<T> GetAsync(dynamic id)
+		protected override T GetFilter(Action<T> filterSetup)
 		{
-			return await Repository.ExecuteAsync<T>((conn, tran) => GetAsync(conn, id, transaction: tran));
-		}
-		public virtual Task<T> GetAsync(IDbConnection connection, dynamic id, IDbTransaction transaction = null)
-			=> SqlMapperExtensions.GetAsync<T>(connection, id, transaction: transaction);
-
-		#endregion
-
-		#region Add
-
-		public async Task<int> AddAsync(
-			T model,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => AddAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
+			return filterSetup.Get(
+				() => ChangeProxyFactory.Create<T>()
 			);
 		}
 
-		public async Task<int> AddAsync(
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
+		protected override void Filter(QueryBuilder<T> builder, T filter)
 		{
-			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) => AddAsync(conn, models, outputMap: outputMap, transaction: tran)
-			);
-		}
-		public virtual Task<int> AddAsync(
-			IDbConnection connection,
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
-		)
-		{
-			if (Repository is SqlRepository)
+			base.Filter(builder, filter);
+
+			var changeTrack = filter as IChangeTrack;
+			if (changeTrack == null)
+				return;
+
+			foreach (var propertyName in changeTrack.Changed)
 			{
-				return connection.InsertBulkAsync(
-					models,
-					transaction: transaction,
-					outputMap: outputMap
-				);
+				var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
+				if (property is null)
+					continue;
+
+				var column = builder.Table.Column(property.Name);
+				var value = property.GetValue(filter);
+
+				if (value is null)
+				{
+					builder.WhereNull(column);
+				}
+				else if (value is string stringValue)
+				{
+					builder.Where(
+						column,
+						stringValue
+					);
+				}
+				else if (value is DateTime dateTimeValue)
+				{
+					builder.Where(
+						column,
+						dateTimeValue
+					);
+				}
+				else
+				{
+					builder.Where(
+						column,
+						value
+					);
+				}
 			}
-
-			return connection.InsertAsync(models, transaction: transaction);
 		}
-
-		#endregion
-
-		#region Update
-
-		public async Task<int> UpdateAsync(
-			T model,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => UpdateAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
-			);
-		}
-		public async Task<int> UpdateAsync(
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) => UpdateAsync(conn, models, outputMap: outputMap, transaction: tran)
-			);
-		}
-		public virtual async Task<int> UpdateAsync(
-			IDbConnection connection,
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
-		)
-		{
-			if (Repository is SqlRepository)
-			{
-				return await connection.UpdateBulkAsync(
-					models,
-					transaction: transaction,
-					outputMap: outputMap
-				);
-			}
-
-			var sucess = await connection.UpdateAsync(models, transaction: transaction);
-			return models.Count();
-		}
-
-		#endregion
-
-		#region Upsert
-
-		public async Task<int> UpsertAsync(
-			T model,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => UpsertAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
-			);
-		}
-		public async Task<int> UpsertAsync(
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) => UpsertAsync(conn, models, outputMap: outputMap, transaction: tran)
-			);
-		}
-		public virtual Task<int> UpsertAsync(
-			IDbConnection connection,
-			IEnumerable<T> models,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
-		)
-		{
-			if (!(Repository is SqlRepository))
-				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
-
-			return connection.UpsertBulkAsync(models, transaction: transaction, outputMap: outputMap);
-		}
-
-		#endregion
-
-		#region Delete
-
-		public async Task<bool> DeleteAsync(T model)
-		{
-			return await Repository.ExecuteAsync((conn, tran) => DeleteAsync(conn, model, transaction: tran));
-		}
-		public virtual Task<bool> DeleteAsync(IDbConnection connection, T model, IDbTransaction transaction = null)
-			=> connection.DeleteAsync(model, transaction: transaction);
-
-		public async Task<int> DeleteAsync(IEnumerable<T> models)
-		{
-			return await Repository.ExecuteAsyncWithTransaction(
-				(conn, tran) => DeleteAsync(conn, models, transaction: tran)
-			);
-		}
-		public virtual async Task<int> DeleteAsync(IDbConnection connection, IEnumerable<T> models, IDbTransaction transaction = null)
-		{
-			if (Repository is SqlRepository)
-			{
-				return await connection.DeleteBulkAsync(
-					models,
-					transaction: transaction
-				);
-			}
-
-			var sucess = await connection.DeleteAsync(models, transaction: transaction);
-			return models.Count();
-		}
-
-		#endregion
-
-		#region Min
-
-		public Task<TResult?> MinAsync<TResult>(string columnName)
-			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnName));
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
-			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
-
-		public Task<TResult?> MinAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
-			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnExpression));
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<T, TResult>> columnExpression, IDbTransaction transaction = null)
-			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnExpression), transaction: transaction);
-
-		protected virtual Task<TResult?> MinAsync<TResult>(Selector column)
-			where TResult : struct
-			=> Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
-		protected virtual Task<TResult?> MinAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
-			where TResult : struct
-			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
-
-		#endregion
-
-		#region Max
-
-		public Task<TResult?> MaxAsync<TResult>(string columnName)
-			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnName));
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
-			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
-
-		public Task<TResult?> MaxAsync<TResult>(Expression<Func<T, TResult>> columnExpression)
-			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnExpression));
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<T, TResult>> columnExpression, IDbTransaction transaction = null)
-			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), transaction);
-
-		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column)
-			where TResult : struct
-			=> Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
-		protected virtual Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
-			where TResult : struct
-			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
-
-		#endregion
 	}
 }

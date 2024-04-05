@@ -6,7 +6,7 @@ using static Dapper.SqlBuilder;
 
 namespace Simpleverse.Repository.Db
 {
-    public class Table<T>
+	public class Table<T>
 	{
 		public string Alias { get; }
 
@@ -37,17 +37,7 @@ namespace Simpleverse.Repository.Db
 		}
 
 		public Selector Column<R>(Expression<Func<T, R>> expression)
-		{
-			var lambda = (LambdaExpression)expression;
-
-			MemberExpression memberExpression;
-			if (lambda.Body is UnaryExpression unaryExpression)
-				memberExpression = (MemberExpression)unaryExpression.Operand;
-			else
-				memberExpression = (MemberExpression)lambda.Body;
-
-			return Column(memberExpression.Member.Name);
-		}
+			=> Column(ExpressionHelper.GetMemberName(expression));
 
 		#region Select
 

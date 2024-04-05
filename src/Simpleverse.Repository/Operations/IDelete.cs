@@ -13,7 +13,7 @@ namespace Simpleverse.Repository.Operations
 
 	public interface IDelete<TModel, TFilter, TOptions> : IDelete<TModel>
 		where TModel : class
-		where TFilter : IQueryFilter, new()
+		where TFilter : class
 	{
 		Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null);
 	}

@@ -13,7 +13,7 @@ using Xunit.Abstractions;
 namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 {
 	[Collection("SqlServerCollection")]
-	public class EntityTest : TestFixture
+	public class EntityTest : DatabaseTestFixture
 	{
 		private readonly SqlRepository _sqlRepository;
 

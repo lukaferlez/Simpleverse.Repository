@@ -1,25 +1,33 @@
 ﻿using Simpleverse.Repository.Db.Test.SqlServer;
 using StackExchange.Profiling;
 using System;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Test
 {
-	public class TestFixture : IClassFixture<DatabaseFixture>
+	public class DatabaseTestFixture : TestFixture, IClassFixture<DatabaseFixture>
 	{
-		protected readonly ITestOutputHelper _output;
 		protected readonly DatabaseFixture _fixture;
 
-		public TestFixture(DatabaseFixture fixture, ITestOutputHelper output)
+		public DatabaseTestFixture(DatabaseFixture fixture, ITestOutputHelper output)
+			: base(output)
 		{
 			_fixture = fixture;
-			_output = output;
+		}
+	}
 
+	public class TestFixture
+	{
+		protected readonly ITestOutputHelper _output;
+
+		public TestFixture(ITestOutputHelper output)
+		{
+			_output = output;
 			MiniProfiler.StartNew();
 		}
-		
+
 		public ProfileWithOutput Profile(string profilerName = null)
 		{
 			return new ProfileWithOutput(_output, profilerName);
@@ -30,7 +38,7 @@ namespace Simpleverse.Repository.Db.Test
 
 		public T Profile<T>(string profilerName, Func<T> profilerBlock)
 		{
-			using(var profiler = Profile(profilerName))
+			using (var profiler = Profile(profilerName))
 				return profilerBlock();
 		}
 

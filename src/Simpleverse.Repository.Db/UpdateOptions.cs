@@ -5,7 +5,7 @@ using System.Linq.Expressions;
 
 namespace Simpleverse.Repository.Db
 {
-	public class UpdateOptions<TTable> : QueryFilter
+	public class UpdateOptions<TTable>
 	{
 		private readonly List<Action<QueryBuilder<TTable>>> _actions;
 

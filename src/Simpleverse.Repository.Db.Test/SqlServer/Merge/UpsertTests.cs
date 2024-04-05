@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 {
     [Collection("SqlServerCollection")]
-	public class UpsertTests : TestFixture
+	public class UpsertTests : DatabaseTestFixture
 	{
 		public UpsertTests(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)

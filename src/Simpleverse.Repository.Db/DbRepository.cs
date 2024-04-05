@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db
 {
-	public class DbRepository
+	public class DbRepository : IDbRepository
 	{
 		private readonly Func<DbConnection> _connectionFactory;
 
@@ -43,12 +43,12 @@ namespace Simpleverse.Repository.Db
 		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(SqlBuilder.Template query)
 			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(query.RawSql, query.Parameters);
 
-		public async Task<IEnumerable<R>> QueryAsync<R>(string rawSql, object parameters)
+		public virtual async Task<IEnumerable<R>> QueryAsync<R>(string rawSql, object parameters)
 		{
 			return await ExecuteAsync((conn, tran) => conn.QueryAsync<R>(rawSql, param: parameters, transaction: tran));
 		}
 
-		public async Task<IEnumerable<dynamic>> QueryAsync(string rawSql, object parameters)
+		public virtual async Task<IEnumerable<dynamic>> QueryAsync(string rawSql, object parameters)
 		{
 			return await ExecuteAsync((conn, tran) => conn.QueryAsync(rawSql, param: parameters, transaction: tran));
 		}

@@ -4,7 +4,8 @@ namespace Simpleverse.Repository.ChangeTracking
 {
 	public interface IChangeTrack
 	{
-		public IEnumerable<(string name, object value)> Changes { get; }
+		public bool IsChanged { get; }
+		public IEnumerable<string> Changed { get; }
 		void Clear();
 	}
 }
