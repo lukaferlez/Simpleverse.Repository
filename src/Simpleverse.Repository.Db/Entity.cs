@@ -2,6 +2,7 @@
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.ChangeTracking;
 using Simpleverse.Repository.Db.Extensions.Dapper;
+using Simpleverse.Repository.Db.Meta;
 using Simpleverse.Repository.Db.Operations;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
@@ -161,11 +162,62 @@ namespace Simpleverse.Repository.Db
 			Filter(builder, filter);
 		}
 
-		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
+		//protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
 
+		//protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
+		//{
+		//	return filterSetup.Get(() => Activator.CreateInstance<TFilter>());
+		//}
 		protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
 		{
-			return filterSetup.Get(() => Activator.CreateInstance<TFilter>());
+			return filterSetup.Get(
+				() => ChangeProxyFactory.Create<TFilter>()
+			);
+		}
+
+		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter)
+		{
+			var changeTrack = filter as IChangeTrack;
+			if (changeTrack == null)
+				return;
+
+			foreach (var propertyName in changeTrack.Changed)
+			{
+				var property = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == propertyName);
+				if (property is null)
+					continue;
+
+				var column = builder.Table.Column(property.Name);
+
+				var filterProperty = TypeMeta.Get<TFilter>().Properties.Single(x => x.Name == propertyName);
+				var value = filterProperty.GetValue(filter);
+
+				if (value is null)
+				{
+					builder.WhereNull(column);
+				}
+				else if (value is string stringValue)
+				{
+					builder.Where(
+						column,
+						stringValue
+					);
+				}
+				else if (value is DateTime dateTimeValue)
+				{
+					builder.Where(
+						column,
+						dateTimeValue
+					);
+				}
+				else
+				{
+					builder.Where(
+						column,
+						value
+					);
+				}
+			}
 		}
 
 		#endregion
@@ -283,15 +335,65 @@ namespace Simpleverse.Repository.Db
 			return builder.AsUpdate();
 		}
 
+		//protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
+		//{
+		//	if (update is UpdateOptions<TModel> updateOptions)
+		//		updateOptions.Apply(builder);
+		//}
+
+		//protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
+		//{
+		//	return updateSetup.Get(() => Activator.CreateInstance<TUpdate>());
+		//}
+		protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
+		{
+			return updateSetup.Get(
+				() => ChangeProxyFactory.Create<TUpdate>()
+			);
+		}
+
 		protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
 		{
 			if (update is UpdateOptions<TModel> updateOptions)
 				updateOptions.Apply(builder);
-		}
 
-		protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
-		{
-			return updateSetup.Get(() => Activator.CreateInstance<TUpdate>());
+			var changeTrack = update as IChangeTrack;
+			if (changeTrack == null)
+				return;
+
+			foreach (var propertyName in changeTrack.Changed)
+			{
+				var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
+				if (property is null)
+					continue;
+
+				var column = builder.Table.Column(property.Name);
+
+				var updateProperty = TypeMeta.Get<TUpdate>().Properties.Single(x => x.Name == propertyName);
+				var value = updateProperty.GetValue(update);
+
+				if (value is string stringValue)
+				{
+					builder.Set(
+						column,
+						stringValue
+					);
+				}
+				else if (value is DateTime dateTimeValue)
+				{
+					builder.Set(
+						column,
+						dateTimeValue
+					);
+				}
+				else
+				{
+					builder.Set(
+						column,
+						value
+					);
+				}
+			}
 		}
 
 		#endregion

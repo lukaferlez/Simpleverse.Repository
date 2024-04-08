@@ -15,8 +15,8 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Version>2.1.0-alpha</Version>
     <Description>High performance operation for MS SQL Server built for Dapper ORM. Including bulk operations Insert, Update, Delete, Get as well as Upsert both single and bulk.</Description>
-    <AssemblyVersion>2.1.0-alpha</AssemblyVersion>
-    <FileVersion>2.1.0-alpha</FileVersion>
+    <AssemblyVersion>2.1.0.1</AssemblyVersion>
+    <FileVersion>2.1.0.1</FileVersion>
     <RepositoryUrl>https://github.com/lukaferlez/Simpleverse.Repository</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <EmbedAllSources>true</EmbedAllSources>
