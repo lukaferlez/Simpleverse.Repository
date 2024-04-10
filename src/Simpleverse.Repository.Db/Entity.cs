@@ -30,9 +30,7 @@ namespace Simpleverse.Repository.Db
 			IDeleteDb<TModel, TFilter, TOptions>,
 			IReplaceDb<TModel, TFilter>,
 			IUpdate<TUpdate, TFilter, TOptions>
-		where TModel : class
-		where TUpdate : class
-		where TFilter : class
+		where TModel : class, new()
 		where TOptions : DbQueryOptions, new()
 	{
 		protected DbRepository Repository { get; }
@@ -189,7 +187,7 @@ namespace Simpleverse.Repository.Db
 
 				var column = builder.Table.Column(property.Name);
 
-				var filterProperty = TypeMeta.Get<TFilter>().Properties.Single(x => x.Name == propertyName);
+				var filterProperty = TypeMeta.Get(filter.GetType()).Properties.Single(x => x.Name == propertyName);
 				var value = filterProperty.GetValue(filter);
 
 				if (value is null)
@@ -345,6 +343,7 @@ namespace Simpleverse.Repository.Db
 		//{
 		//	return updateSetup.Get(() => Activator.CreateInstance<TUpdate>());
 		//}
+
 		protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
 		{
 			return updateSetup.Get(
@@ -369,7 +368,7 @@ namespace Simpleverse.Repository.Db
 
 				var column = builder.Table.Column(property.Name);
 
-				var updateProperty = TypeMeta.Get<TUpdate>().Properties.Single(x => x.Name == propertyName);
+				var updateProperty = TypeMeta.Get(update.GetType()).Properties.Single(x => x.Name == propertyName);
 				var value = updateProperty.GetValue(update);
 
 				if (value is string stringValue)
@@ -663,8 +662,7 @@ namespace Simpleverse.Repository.Db
 	}
 
 	public class Entity<TModel, TFilter, TOptions> : Entity<TModel, TModel, TFilter, TOptions>
-		where TModel : class
-		where TFilter : class
+		where TModel : class, new()
 		where TOptions : DbQueryOptions, new()
 	{
 		public Entity(DbRepository repository, Table<TModel> source)
@@ -672,113 +670,113 @@ namespace Simpleverse.Repository.Db
 		{
 		}
 
-		protected override TModel GetUpdate(Action<TModel> updateSetup)
-		{
-			return updateSetup.Get(
-				() => ChangeProxyFactory.Create<TModel>()
-			);
-		}
+		//protected override TModel GetUpdate(Action<TModel> updateSetup)
+		//{
+		//	return updateSetup.Get(
+		//		() => ChangeProxyFactory.Create<TModel>()
+		//	);
+		//}
 
-		protected override void Set(QueryBuilder<TModel> builder, TModel update)
-		{
-			base.Set(builder, update);
+		//protected override void Set(QueryBuilder<TModel> builder, TModel update)
+		//{
+		//	base.Set(builder, update);
 
-			var changeTrack = update as IChangeTrack;
-			if (changeTrack == null)
-				return;
+		//	var changeTrack = update as IChangeTrack;
+		//	if (changeTrack == null)
+		//		return;
 
-			foreach (var propertyName in changeTrack.Changed)
-			{
-				var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
-				if (property is null)
-					continue;
+		//	foreach (var propertyName in changeTrack.Changed)
+		//	{
+		//		var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
+		//		if (property is null)
+		//			continue;
 
-				var column = builder.Table.Column(property.Name);
-				var value = property.GetValue(update);
+		//		var column = builder.Table.Column(property.Name);
+		//		var value = property.GetValue(update);
 
-				if (value is string stringValue)
-				{
-					builder.Set(
-						column,
-						stringValue
-					);
-				}
-				else if (value is DateTime dateTimeValue)
-				{
-					builder.Set(
-						column,
-						dateTimeValue
-					);
-				}
-				else
-				{
-					builder.Set(
-						column,
-						value
-					);
-				}
-			}
-		}
+		//		if (value is string stringValue)
+		//		{
+		//			builder.Set(
+		//				column,
+		//				stringValue
+		//			);
+		//		}
+		//		else if (value is DateTime dateTimeValue)
+		//		{
+		//			builder.Set(
+		//				column,
+		//				dateTimeValue
+		//			);
+		//		}
+		//		else
+		//		{
+		//			builder.Set(
+		//				column,
+		//				value
+		//			);
+		//		}
+		//	}
+		//}
 	}
 
 	public class Entity<T> : Entity<T, T, DbQueryOptions>
-		where T : class
+		where T : class, new()
 	{
 		public Entity(DbRepository repository, Table<T> source)
 			: base(repository, source)
 		{
 		}
 
-		protected override T GetFilter(Action<T> filterSetup)
-		{
-			return filterSetup.Get(
-				() => ChangeProxyFactory.Create<T>()
-			);
-		}
+		//protected override T GetFilter(Action<T> filterSetup)
+		//{
+		//	return filterSetup.Get(
+		//		() => ChangeProxyFactory.Create<T>()
+		//	);
+		//}
 
-		protected override void Filter(QueryBuilder<T> builder, T filter)
-		{
-			base.Filter(builder, filter);
+		//protected override void Filter(QueryBuilder<T> builder, T filter)
+		//{
+		//	base.Filter(builder, filter);
 
-			var changeTrack = filter as IChangeTrack;
-			if (changeTrack == null)
-				return;
+		//	var changeTrack = filter as IChangeTrack;
+		//	if (changeTrack == null)
+		//		return;
 
-			foreach (var propertyName in changeTrack.Changed)
-			{
-				var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
-				if (property is null)
-					continue;
+		//	foreach (var propertyName in changeTrack.Changed)
+		//	{
+		//		var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
+		//		if (property is null)
+		//			continue;
 
-				var column = builder.Table.Column(property.Name);
-				var value = property.GetValue(filter);
+		//		var column = builder.Table.Column(property.Name);
+		//		var value = property.GetValue(filter);
 
-				if (value is null)
-				{
-					builder.WhereNull(column);
-				}
-				else if (value is string stringValue)
-				{
-					builder.Where(
-						column,
-						stringValue
-					);
-				}
-				else if (value is DateTime dateTimeValue)
-				{
-					builder.Where(
-						column,
-						dateTimeValue
-					);
-				}
-				else
-				{
-					builder.Where(
-						column,
-						value
-					);
-				}
-			}
-		}
+		//		if (value is null)
+		//		{
+		//			builder.WhereNull(column);
+		//		}
+		//		else if (value is string stringValue)
+		//		{
+		//			builder.Where(
+		//				column,
+		//				stringValue
+		//			);
+		//		}
+		//		else if (value is DateTime dateTimeValue)
+		//		{
+		//			builder.Where(
+		//				column,
+		//				dateTimeValue
+		//			);
+		//		}
+		//		else
+		//		{
+		//			builder.Where(
+		//				column,
+		//				value
+		//			);
+		//		}
+		//	}
+		//}
 	}
 }

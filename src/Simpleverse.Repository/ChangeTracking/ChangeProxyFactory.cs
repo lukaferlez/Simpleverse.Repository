@@ -233,6 +233,9 @@ namespace Simpleverse.Repository.ChangeTracking
 
 		private static void AddInterfaceProxyProperty(this TypeBuilder typeBuilder, Type typeOfT, PropertyInfo sourceProperty, MethodInfo onChangeMethod)
 		{
+			if (!sourceProperty.CanWrite)
+				throw new NotSupportedException("Non write interface properties are not supported.");
+
 			var propertyName = sourceProperty.Name;
 			var propertyType = sourceProperty.PropertyType;
 

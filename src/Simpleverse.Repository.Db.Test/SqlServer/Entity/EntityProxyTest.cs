@@ -164,5 +164,34 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			Assert.Contains("[I].[Active] = @I_Active", query);
 			Assert.Contains("[I].[DummyValue] = @I_DummyValue", query);
 		}
+
+		[Fact]
+		public async Task UpdateAsyncWithExtendedInterfaceParametersTest()
+		{
+			// arange
+			var repositoryHelper = new DapperHelper();
+			var entity = new EntityInterfaceExtended(repositoryHelper.Instance());
+
+			// act
+			await entity.UpdateAsync(
+				update =>
+				{
+					update.Name = "test";
+					update.Description = "test";
+				},
+				filter =>
+				{
+					filter.DummyValue = 1;
+					filter.Active = false;
+				}
+			);
+
+			// assert
+			var query = repositoryHelper.Query();
+			Assert.Contains("[I].[Name] = @Set_I_Name", query);
+			Assert.Contains("[I].[Description] = @Set_I_Description", query);
+			Assert.Contains("[I].[Active] = @I_Active", query);
+			Assert.Contains("[I].[DummyValue] = @I_DummyValue", query);
+		}
 	}
 }

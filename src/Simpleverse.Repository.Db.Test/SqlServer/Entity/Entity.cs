@@ -2,6 +2,13 @@
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 {
+	public interface IEntityModel
+	{
+		int Id { get; set; }
+		string Name { get; set; }
+		bool Active { get; set; }
+	}
+
 	public class Entity : Entity<EntityModel>
 	{
 		public Entity(DbRepository repository)
@@ -11,7 +18,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 	}
 
 	[Table("IEntity")]
-	public class EntityModel
+	public class EntityModel : IEntityModel
 	{
 		public virtual int Id { get; set; }
 		public virtual string Name { get; set; }
@@ -26,7 +33,13 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		}
 	}
 
-	public class EntityModelExtended : EntityModel
+	public interface IEntityModelExtended : IEntityModel
+	{
+		string Description { get; set; }
+		int DummyValue { get; set; }
+	}
+
+	public class EntityModelExtended : EntityModel, IEntityModelExtended
 	{
 		public string NormalizedName => Name.ToUpper();
 		public virtual string Description { get; set; }
@@ -44,6 +57,14 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 			base.Filter(builder, filter);
 			IfChanged(filter, x => x.DummyValue, () => builder.Where(x => x.DummyValue, filter.DummyValue));
+		}
+	}
+
+	public class EntityInterfaceExtended : Entity<EntityModelExtended, IEntityModelExtended, DbQueryOptions>
+	{
+		public EntityInterfaceExtended(DbRepository repository)
+			: base(repository, new Table<EntityModelExtended>("I"))
+		{
 		}
 	}
 }
