@@ -31,6 +31,8 @@ namespace Simpleverse.Repository.Db
 			IReplaceDb<TModel, TFilter>,
 			IUpdate<TUpdate, TFilter, TOptions>
 		where TModel : class, new()
+		where TFilter : class
+		where TUpdate : class
 		where TOptions : DbQueryOptions, new()
 	{
 		protected DbRepository Repository { get; }
@@ -663,6 +665,7 @@ namespace Simpleverse.Repository.Db
 
 	public class Entity<TModel, TFilter, TOptions> : Entity<TModel, TModel, TFilter, TOptions>
 		where TModel : class, new()
+		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
 		public Entity(DbRepository repository, Table<TModel> source)
