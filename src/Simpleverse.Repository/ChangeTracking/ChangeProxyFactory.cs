@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -15,7 +16,6 @@ namespace Simpleverse.Repository.ChangeTracking
 		private static readonly ConcurrentDictionary<Type, Type> _typeCache = new ConcurrentDictionary<Type, Type>();
 
 		public static T Create<T>()
-			where T : class
 		{
 			Type typeOfT = typeof(T);
 
@@ -181,13 +181,54 @@ namespace Simpleverse.Repository.ChangeTracking
 			else
 				typeBuilder.SetParent(typeOfT);
 
-			foreach (var property in typeOfT.GetProperties())
+			var properties = ExtractProperties(typeOfT);
+			foreach (var property in properties)
 			{
 				if (typeOfT.IsInterface)
 					typeBuilder.AddInterfaceProxyProperty(typeOfT, property, onChangeMethod);
 				else
 					typeBuilder.AddProxyProperty(typeOfT, property, onChangeMethod);
 			}
+		}
+
+		private static IEnumerable<PropertyInfo> ExtractProperties(Type type)
+		{
+			if (!type.IsInterface)
+				return type.GetProperties();
+
+			var interfaceTypes = ExtractInterfaces(type);
+
+			var properties = interfaceTypes
+				.SelectMany(x => x.GetProperties())
+				.GroupBy(x => x.Name)
+				.ToArray();
+
+			var duplicateProperties = properties
+				.Where(x => x.GroupBy(x => x.PropertyType).Count() > 1)
+				.SelectMany(x => x)
+				.ToArray();
+			if (duplicateProperties.Any())
+			{
+				var ex = new NotSupportedException("Multiple properties with the same name are not supported");
+				ex.Data.Add("DuplicateProperties", duplicateProperties.Select(x => x.DeclaringType.Name + "." + x.Name));
+				throw ex;
+			}
+
+			return properties.Select(x => x.First());
+		}
+
+		private static IEnumerable<Type> ExtractInterfaces(Type type)
+		{
+			var interfaceTypes = new List<Type>();
+			foreach (var typeOfInterface in type.GetInterfaces())
+			{
+				interfaceTypes.AddRange(ExtractInterfaces(typeOfInterface));
+			}
+
+			if (type.IsInterface)
+				interfaceTypes.Add(type);
+
+			return interfaceTypes;
 		}
 
 		private static void AddInterfaceProxyProperty(this TypeBuilder typeBuilder, Type typeOfT, PropertyInfo sourceProperty, MethodInfo onChangeMethod)
