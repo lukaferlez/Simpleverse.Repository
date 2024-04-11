@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
 {
-	public class SqlRepository : DbRepository
+	public class SqlRepository : DbRepository, ISqlRepository
 	{
 		public SqlRepository(IConfiguration configuration, string connectionStringName)
 			: this(configuration.GetConnectionString(connectionStringName))
@@ -25,7 +25,14 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 		}
 
-		public SqlRepository(Func<ProfiledDbConnection> connectionFactory) : base(connectionFactory) { }
+		public SqlRepository(Func<DbConnection> connectionFactory)
+			: base(connectionFactory)
+		{
+
+		}
+
+		public SqlRepository(Func<ProfiledDbConnection> connectionFactory)
+			: base(connectionFactory) { }
 
 		public async Task<R> ExecuteWithAppLockAsync<R>(string resourceIdentifier, Func<DbConnection, DbTransaction, Task<R>> function)
 		{
@@ -36,5 +43,10 @@ namespace Simpleverse.Repository.Db.SqlServer
 				}
 			);
 		}
+	}
+
+	public interface ISqlRepository : IDbRepository
+	{
+
 	}
 }

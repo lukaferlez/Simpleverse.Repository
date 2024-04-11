@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace Simpleverse.Repository.Db.Operations
 {
 	public interface IQueryExistDb<TFilter> : IQueryExist<TFilter>
-		where TFilter : IQueryFilter, new()
+		where TFilter : class
 	{
 		Task<bool> ExistsAsync(IDbConnection connection, Action<TFilter> filterSetup = null, IDbTransaction transaction = null);
 	}

@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class DeleteTests : TestFixture
+	public class DeleteTests : DatabaseTestFixture
 	{
 		public DeleteTests(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)

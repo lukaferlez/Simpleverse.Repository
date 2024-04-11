@@ -13,8 +13,8 @@ namespace Simpleverse.Repository.Operations
 	}
 
 	public interface IUpdate<TUpdate, TFilter, TOptions>
-		where TUpdate : IQueryFilter, new()
-		where TFilter : IQueryFilter, new()
+		where TUpdate : class
+		where TFilter : class
 		where TOptions : QueryOptions, new()
 	{
 		Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null);

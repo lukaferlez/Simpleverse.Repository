@@ -13,7 +13,7 @@ using StackExchange.Profiling;
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class UpdateTests : TestFixture
+	public class UpdateTests : DatabaseTestFixture
 	{
 		public UpdateTests(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)

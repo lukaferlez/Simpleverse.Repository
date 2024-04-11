@@ -8,7 +8,7 @@ using Xunit.Abstractions;
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
 	[Collection("SqlServerCollection")]
-	public class GetTests : TestFixture
+	public class GetTests : DatabaseTestFixture
 	{
 		public GetTests(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)
