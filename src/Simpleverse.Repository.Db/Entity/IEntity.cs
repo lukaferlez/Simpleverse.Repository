@@ -1,10 +1,9 @@
 ﻿using Simpleverse.Repository.Db.Operations;
-using Simpleverse.Repository.Entity;
 
 namespace Simpleverse.Repository.Db.Entity
 {
-	public interface IEntityDb<TModel, TUpdate, TFilter, TOptions>
-		: IEntity<TModel, TUpdate, TFilter, TOptions>,
+	public interface IEntity<TModel, TUpdate, TFilter, TOptions>
+		: Repository.Entity.IEntity<TModel, TUpdate, TFilter, TOptions>,
 			IAddDb<TModel>,
 			IAggregateDb<TFilter>,
 			IDeleteDb<TModel>,
@@ -21,23 +20,23 @@ namespace Simpleverse.Repository.Db.Entity
 	{
 	}
 
-	public interface IEntityDb<TModel, TFilter, TOptions>
-		: IEntityDb<TModel, TModel, TFilter, TOptions>, IEntity<TModel, TFilter, TOptions>
+	public interface IEntity<TModel, TFilter, TOptions>
+		: IEntity<TModel, TModel, TFilter, TOptions>, Repository.Entity.IEntity<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
 		where TOptions : class, new()
 	{
 	}
 
-	public interface IEntityDb<TModel, TOptions>
-		: IEntityDb<TModel, TModel, TOptions>, IEntity<TModel, TOptions>
+	public interface IEntity<TModel, TOptions>
+		: IEntity<TModel, TModel, TOptions>, Repository.Entity.IEntity<TModel, TOptions>
 		where TModel : class
 		where TOptions : class, new()
 	{
 	}
 
-	public interface IEntityDb<TModel>
-		: IEntityDb<TModel, DbQueryOptions>
+	public interface IEntity<TModel>
+		: IEntity<TModel, DbQueryOptions>
 		where TModel : class
 	{
 

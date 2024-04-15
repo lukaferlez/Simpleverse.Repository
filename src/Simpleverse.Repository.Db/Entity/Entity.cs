@@ -5,7 +5,6 @@ using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.Meta;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
-using Simpleverse.Repository.Entity;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -16,8 +15,8 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Entity
 {
-	public class EntityDb<TModel, TUpdate, TFilter, TOptions>
-		: IEntityDb<TModel, TUpdate, TFilter, TOptions>, IEntity<TModel, TUpdate, TFilter, TOptions>
+	public class Entity<TModel, TUpdate, TFilter, TOptions>
+		: IEntity<TModel, TUpdate, TFilter, TOptions>, Repository.Entity.IEntity<TModel, TUpdate, TFilter, TOptions>
 		where TModel : class, new()
 		where TFilter : class
 		where TUpdate : class
@@ -26,7 +25,7 @@ namespace Simpleverse.Repository.Db.Entity
 		protected DbRepository Repository { get; }
 		protected Table<TModel> Source { get; }
 
-		public EntityDb(DbRepository repository, Table<TModel> source)
+		public Entity(DbRepository repository, Table<TModel> source)
 		{
 			Repository = repository;
 			Source = source;
@@ -633,34 +632,34 @@ namespace Simpleverse.Repository.Db.Entity
 		}
 	}
 
-	public class EntityDb<TModel, TFilter, TOptions>
-		: EntityDb<TModel, TModel, TFilter, TOptions>, IEntityDb<TModel, TFilter, TOptions>
+	public class Entity<TModel, TFilter, TOptions>
+		: Entity<TModel, TModel, TFilter, TOptions>, IEntity<TModel, TFilter, TOptions>
 		where TModel : class, new()
 		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
-		public EntityDb(DbRepository repository, Table<TModel> source)
+		public Entity(DbRepository repository, Table<TModel> source)
 			: base(repository, source)
 		{
 		}
 	}
 
-	public class EntityDb<T, TOptions>
-		: EntityDb<T, T, TOptions>, IEntityDb<T, TOptions>
+	public class Entity<T, TOptions>
+		: Entity<T, T, TOptions>, IEntity<T, TOptions>
 		where T : class, new()
 		where TOptions : DbQueryOptions, new()
 	{
-		public EntityDb(DbRepository repository, Table<T> source)
+		public Entity(DbRepository repository, Table<T> source)
 			: base(repository, source)
 		{
 		}
 	}
 
-	public class EntityDb<T>
-		: EntityDb<T, DbQueryOptions>, IEntityDb<T>
+	public class Entity<T>
+		: Entity<T, DbQueryOptions>, IEntity<T>
 		where T : class, new()
 	{
-		public EntityDb(DbRepository repository, Table<T> source)
+		public Entity(DbRepository repository, Table<T> source)
 			: base(repository, source)
 		{
 		}

@@ -204,7 +204,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		bool Active { get; set; }
 	}
 
-	public class Entity : EntityDb<EntityModel>
+	public class Entity : Entity<EntityModel>
 	{
 		public Entity(DbRepository repository)
 			: base(repository, new Table<EntityModel>("I"))
@@ -220,7 +220,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public virtual bool Active { get; set; }
 	}
 
-	public class EntityExtend : EntityDb<EntityModelExtended>
+	public class EntityExtend : Entity<EntityModelExtended>
 	{
 		public EntityExtend(DbRepository repository)
 			: base(repository, new Table<EntityModelExtended>("I"))
@@ -241,7 +241,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public virtual int DummyValue { get; set; }
 	}
 
-	public class EntityCustom : EntityDb<EntityModelExtended>
+	public class EntityCustom : Entity<EntityModelExtended>
 	{
 		public EntityCustom(DbRepository repository)
 			: base(repository, new Table<EntityModelExtended>("I"))
@@ -255,7 +255,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		}
 	}
 
-	public class EntityInterfaceExtended : EntityDb<EntityModelExtended, IEntityModelExtended, DbQueryOptions>
+	public class EntityInterfaceExtended : Entity<EntityModelExtended, IEntityModelExtended, DbQueryOptions>
 	{
 		public EntityInterfaceExtended(DbRepository repository)
 			: base(repository, new Table<EntityModelExtended>("I"))

@@ -8,21 +8,21 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Entity
 {
-	public class ProjectedEntityDb<TProjection, TModel, TUpdate, TFilter, TOptions>
-		: ProjectedEntity<TProjection, IEntityDb<TModel, TUpdate, TFilter, TOptions>, TModel, TUpdate, TFilter, TOptions>,
-		IProjectedEntityDb<TProjection, TModel, TUpdate, TFilter, TOptions>
+	public class ProjectedEntity<TProjection, TModel, TUpdate, TFilter, TOptions>
+		: ProjectedEntity<TProjection, IEntity<TModel, TUpdate, TFilter, TOptions>, TModel, TUpdate, TFilter, TOptions>,
+		IProjectedEntity<TProjection, TModel, TUpdate, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
 		where TFilter : class
 		where TUpdate : class
 		where TOptions : DbQueryOptions, new()
 	{
-		public ProjectedEntityDb(IEntityDb<TModel, TUpdate, TFilter, TOptions> entity)
+		public ProjectedEntity(IEntity<TModel, TUpdate, TFilter, TOptions> entity)
 			: base(entity)
 		{
 		}
 
-		public ProjectedEntityDb(IEntityDb<TModel, TUpdate, TFilter, TOptions> entity, Func<TModel, TProjection> creator)
+		public ProjectedEntity(IEntity<TModel, TUpdate, TFilter, TOptions> entity, Func<TModel, TProjection> creator)
 			: base(entity, creator)
 		{
 		}
@@ -124,53 +124,53 @@ namespace Simpleverse.Repository.Db.Entity
 			=> _entity.UpsertAsync(connection, models.Select(x => x.Model), outputMap: OutputMapRedirect(models, outputMap), transaction: transaction);
 	}
 
-	public class ProjectedEntityDb<TProjection, TModel, TFilter, TOptions>
-		: ProjectedEntityDb<TProjection, TModel, TModel, TFilter, TOptions>, IProjectedEntityDb<TProjection, TModel, TFilter, TOptions>
+	public class ProjectedEntity<TProjection, TModel, TFilter, TOptions>
+		: ProjectedEntity<TProjection, TModel, TModel, TFilter, TOptions>, IProjectedEntity<TProjection, TModel, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
 		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
-		public ProjectedEntityDb(IEntityDb<TModel, TFilter, TOptions> entity)
+		public ProjectedEntity(IEntity<TModel, TFilter, TOptions> entity)
 			: base(entity)
 		{
 
 		}
 
-		public ProjectedEntityDb(IEntityDb<TModel, TFilter, TOptions> entity, Func<TModel, TProjection> creator)
+		public ProjectedEntity(IEntity<TModel, TFilter, TOptions> entity, Func<TModel, TProjection> creator)
 			: base(entity, creator)
 		{
 		}
 	}
 
-	public class ProjectedEntityDb<TProjection, TModel, TOptions>
-		: ProjectedEntityDb<TProjection, TModel, TModel, TOptions>, IProjectedEntityDb<TProjection, TModel, TOptions>
+	public class ProjectedEntity<TProjection, TModel, TOptions>
+		: ProjectedEntity<TProjection, TModel, TModel, TOptions>, IProjectedEntity<TProjection, TModel, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
 		where TOptions : DbQueryOptions, new()
 	{
-		public ProjectedEntityDb(IEntityDb<TModel, TModel, TOptions> entity)
+		public ProjectedEntity(IEntity<TModel, TModel, TOptions> entity)
 			: base(entity)
 		{
 		}
 
-		public ProjectedEntityDb(IEntityDb<TModel, TModel, TOptions> entity, Func<TModel, TProjection> creator)
+		public ProjectedEntity(IEntity<TModel, TModel, TOptions> entity, Func<TModel, TProjection> creator)
 			: base(entity, creator)
 		{
 		}
 	}
 
-	public class ProjectedEntityDb<TProjection, TModel>
-		: ProjectedEntityDb<TProjection, TModel, DbQueryOptions>, IProjectedEntityDb<TProjection, TModel>
+	public class ProjectedEntity<TProjection, TModel>
+		: ProjectedEntity<TProjection, TModel, DbQueryOptions>, IProjectedEntity<TProjection, TModel>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
 	{
-		public ProjectedEntityDb(IEntityDb<TModel> entity)
+		public ProjectedEntity(IEntity<TModel> entity)
 			: base(entity)
 		{
 		}
 
-		public ProjectedEntityDb(IEntityDb<TModel> entity, Func<TModel, TProjection> creator)
+		public ProjectedEntity(IEntity<TModel> entity, Func<TModel, TProjection> creator)
 			: base(entity, creator)
 		{
 		}

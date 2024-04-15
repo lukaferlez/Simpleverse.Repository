@@ -268,7 +268,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		}
 	}
 
-	public class IdentityEntity : EntityDb<Identity, IdentityQueryFilter, DbQueryOptions>
+	public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
 	{
 		public IdentityEntity(DatabaseFixture fixture)
 			: base(new DbRepository(() => fixture.GetConnection()), new Table<Identity>("I"))
