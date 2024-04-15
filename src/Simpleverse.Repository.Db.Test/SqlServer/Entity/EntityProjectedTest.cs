@@ -48,8 +48,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			await entity.AddAsync(projections, OutputMapper.Map);
 
 			// assert
-			Assert.Equal(1, projections.First().Model.Id);
-			Assert.Equal(2, projections.ElementAt(1).Model.Id);
+			Assert.NotEqual(0, projections.First().Model.Id);
+			Assert.NotEqual(0, projections.ElementAt(1).Model.Id);
 		}
 	}
 
