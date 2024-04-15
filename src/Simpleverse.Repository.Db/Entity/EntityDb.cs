@@ -3,10 +3,9 @@ using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.ChangeTracking;
 using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.Meta;
-using Simpleverse.Repository.Db.Operations;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
-using Simpleverse.Repository.Operations;
+using Simpleverse.Repository.Entity;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -17,19 +16,8 @@ using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Entity
 {
-	public class Entity<TModel, TUpdate, TFilter, TOptions>
-		:
-			IAddDb<TModel>,
-			IUpdateDb<TModel>,
-			IDeleteDb<TModel>,
-			IAggregateDb,
-			IUpsertDb<TModel>,
-			IQueryExistDb<TFilter>,
-			IQueryGetDb<TModel, TFilter, TOptions>,
-			IQueryListDb<TModel, TFilter, TOptions>,
-			IDeleteDb<TModel, TFilter, TOptions>,
-			IReplaceDb<TModel, TFilter>,
-			IUpdate<TUpdate, TFilter, TOptions>
+	public class EntityDb<TModel, TUpdate, TFilter, TOptions>
+		: IEntityDb<TModel, TUpdate, TFilter, TOptions>, IEntity<TModel, TUpdate, TFilter, TOptions>
 		where TModel : class, new()
 		where TFilter : class
 		where TUpdate : class
@@ -38,7 +26,7 @@ namespace Simpleverse.Repository.Db.Entity
 		protected DbRepository Repository { get; }
 		protected Table<TModel> Source { get; }
 
-		public Entity(DbRepository repository, Table<TModel> source)
+		public EntityDb(DbRepository repository, Table<TModel> source)
 		{
 			Repository = repository;
 			Source = source;
@@ -304,7 +292,7 @@ namespace Simpleverse.Repository.Db.Entity
 		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> Repository.ExecuteAsync((conn, tran) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup, tran));
 
-		public virtual Task<int> UpdateAsync(IDbConnection conn, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction tran = null)
+		public virtual Task<int> UpdateAsync(IDbConnection connection, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction tran = null)
 		{
 			var update = GetUpdate(updateSetup);
 			var filter = GetFilter(filterSetup);
@@ -314,7 +302,7 @@ namespace Simpleverse.Repository.Db.Entity
 			UpdateQuery(builder, update, filter, options);
 
 			var query = UpdateTemplate(builder, update, filter, options);
-			return conn.ExecuteAsync(query, tran: tran);
+			return connection.ExecuteAsync(query, tran: tran);
 		}
 
 		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
@@ -645,21 +633,34 @@ namespace Simpleverse.Repository.Db.Entity
 		}
 	}
 
-	public class Entity<TModel, TFilter, TOptions> : Entity<TModel, TModel, TFilter, TOptions>
+	public class EntityDb<TModel, TFilter, TOptions>
+		: EntityDb<TModel, TModel, TFilter, TOptions>, IEntityDb<TModel, TFilter, TOptions>
 		where TModel : class, new()
 		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
-		public Entity(DbRepository repository, Table<TModel> source)
+		public EntityDb(DbRepository repository, Table<TModel> source)
 			: base(repository, source)
 		{
 		}
 	}
 
-	public class Entity<T> : Entity<T, T, DbQueryOptions>
+	public class EntityDb<T, TOptions>
+		: EntityDb<T, T, TOptions>, IEntityDb<T, TOptions>
+		where T : class, new()
+		where TOptions : DbQueryOptions, new()
+	{
+		public EntityDb(DbRepository repository, Table<T> source)
+			: base(repository, source)
+		{
+		}
+	}
+
+	public class EntityDb<T>
+		: EntityDb<T, DbQueryOptions>, IEntityDb<T>
 		where T : class, new()
 	{
-		public Entity(DbRepository repository, Table<T> source)
+		public EntityDb(DbRepository repository, Table<T> source)
 			: base(repository, source)
 		{
 		}

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using Simpleverse.Repository.Db.Entity;
 using Simpleverse.Repository.Db.Meta;
+using Simpleverse.Repository.Entity;
 using System;
 using System.Collections;
 using System.Collections.Generic;

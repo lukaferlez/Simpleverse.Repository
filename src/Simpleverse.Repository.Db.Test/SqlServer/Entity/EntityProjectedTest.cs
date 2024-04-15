@@ -1,5 +1,5 @@
-﻿using Simpleverse.Repository.Db.Entity;
-using Simpleverse.Repository.Db.SqlServer;
+﻿using Simpleverse.Repository.Db.SqlServer;
+using Simpleverse.Repository.Entity;
 using StackExchange.Profiling.Data;
 using System;
 using System.Linq;

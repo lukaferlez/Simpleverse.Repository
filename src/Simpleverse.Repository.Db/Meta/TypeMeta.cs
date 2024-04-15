@@ -1,4 +1,4 @@
-﻿using Simpleverse.Repository.Db.Entity;
+﻿using Simpleverse.Repository.Entity;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

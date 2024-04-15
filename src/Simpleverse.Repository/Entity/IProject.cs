@@ -1,4 +1,4 @@
-﻿namespace Simpleverse.Repository.Db.Entity
+﻿namespace Simpleverse.Repository.Entity
 {
 	public interface IProject<out T>
 	{

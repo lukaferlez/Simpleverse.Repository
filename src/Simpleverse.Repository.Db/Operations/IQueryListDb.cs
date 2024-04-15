@@ -9,7 +9,7 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IQueryListDb<TModel, TFilter, TOptions> : IQueryList<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
-		where TOptions : QueryOptions, new()
+		where TOptions : class, new()
 	{
 		Task<IEnumerable<TModel>> ListAsync(
 			IDbConnection connection,

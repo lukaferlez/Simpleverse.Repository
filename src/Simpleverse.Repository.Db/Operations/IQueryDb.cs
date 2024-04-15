@@ -9,7 +9,7 @@ namespace Simpleverse.Repository.Db.Operations
 			IQueryListDb<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
-		where TOptions : QueryOptions, new()
+		where TOptions : class, new()
 	{
 	}
 }

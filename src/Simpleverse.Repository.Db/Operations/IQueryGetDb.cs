@@ -8,7 +8,7 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IQueryGetDb<TModel, TFilter, TOptions> : IQueryGet<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
-		where TOptions : QueryOptions, new()
+		where TOptions : class, new()
 	{
 		Task<TModel> GetAsync(
 			IDbConnection connection,
