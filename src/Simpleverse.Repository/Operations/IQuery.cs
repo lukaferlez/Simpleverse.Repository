@@ -4,7 +4,7 @@
 		: IQueryExist<TFilter>, IQueryGet<TModel, TFilter, TOptions>, IQueryList<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
-		where TOptions : QueryOptions, new()
+		where TOptions : class
 	{
 	}
 }

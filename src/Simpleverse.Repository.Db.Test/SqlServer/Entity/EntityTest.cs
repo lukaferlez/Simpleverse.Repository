@@ -1,4 +1,5 @@
 ﻿using Dapper.Contrib.Extensions;
+using Simpleverse.Repository.Db.Entity;
 using Simpleverse.Repository.Db.Extensions;
 using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.SqlServer;
@@ -296,5 +297,10 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			builder.Where(x => x.Name, filter.Name);
 			base.Filter(builder, filter);
 		}
+	}
+
+	public class IdentityQueryFilter
+	{
+		public virtual string Name { get; set; }
 	}
 }

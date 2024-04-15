@@ -7,7 +7,7 @@ namespace Simpleverse.Repository.Operations
 	public interface IQueryList<TModel, TFilter, TOptions>
 		where TModel : class
 		where TFilter : class
-		where TOptions : QueryOptions, new()
+		where TOptions : class
 	{
 		Task<IEnumerable<TModel>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null);
 

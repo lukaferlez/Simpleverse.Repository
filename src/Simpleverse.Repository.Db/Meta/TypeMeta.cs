@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Simpleverse.Repository.Db.Entity;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
+using System.Reflection;
 
 namespace Simpleverse.Repository.Db.Meta
 {
@@ -20,6 +21,7 @@ namespace Simpleverse.Repository.Db.Meta
 		public IList<PropertyInfo> PropertiesExceptKeyComputedAndExplicit { get; }
 		public IList<PropertyInfo> PropertiesKeyAndExplicit { get; }
 		public IList<PropertyInfo> PropertiesExceptComputed { get; }
+		public bool IsProjection { get; }
 
 		public TypeMeta(Type type)
 		{
@@ -33,6 +35,7 @@ namespace Simpleverse.Repository.Db.Meta
 			PropertiesExceptKeyAndComputed = Properties.Except(PropertiesKeyAndComputed).ToList();
 			PropertiesExceptKeyComputedAndExplicit = PropertiesExceptKeyAndComputed.Except(PropertiesExplicit).ToList();
 			PropertiesKeyAndExplicit = PropertiesExplicit.Union(PropertiesKey).ToList();
+			IsProjection = Array.Exists(type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IProject<>));
 		}
 
 		public static TypeMeta Get(Type type)

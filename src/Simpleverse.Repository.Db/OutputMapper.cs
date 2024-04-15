@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using Simpleverse.Repository.Db.Entity;
 using Simpleverse.Repository.Db.Meta;
-using Simpleverse.Repository.Db.SqlServer;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -48,10 +49,39 @@ namespace Simpleverse.Repository.Db
 			if (results == null || !results.Any())
 				return;
 
+			var entitiesToMap = (IEnumerable)entities;
+			var resultsToMap = (IEnumerable)results;
+
+			if (TypeMeta.Get<T>().IsProjection)
+			{
+				entitiesToMap = entities.Select(x => ((IProject<object>)x).Model);
+				resultsToMap = results.Select(x => ((IProject<object>)x).Model);
+			}
+
+			Map(
+				entitiesToMap,
+				resultsToMap,
+				propertiesToMatch,
+				propertiesToMap,
+				mapResultOnce
+			);
+		}
+
+		private static void Map(
+			IEnumerable entities,
+			IEnumerable results,
+			IEnumerable<PropertyInfo> propertiesToMatch,
+			IEnumerable<PropertyInfo> propertiesToMap,
+			bool mapResultOnce
+		)
+		{
 			var logger = Settings.GetLogger<OutputMapper>();
-			var entitiesWithMapping = entities
-				.Select(x => new EntityState<T>(x))
-				.ToList();
+
+			var entitiesWithMapping = new List<EntityState<object>>();
+			foreach (var entity in entities)
+			{
+				entitiesWithMapping.Add(new EntityState<object>(entity));
+			}
 
 			foreach (var result in results)
 			{
@@ -92,7 +122,7 @@ namespace Simpleverse.Repository.Db
 							entity.Entity,
 							result
 						);
-					}	
+					}
 				}
 			}
 		}

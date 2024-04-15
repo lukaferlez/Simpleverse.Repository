@@ -15,7 +15,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Simpleverse.Repository.Db
+namespace Simpleverse.Repository.Db.Entity
 {
 	public class Entity<TModel, TUpdate, TFilter, TOptions>
 		:
@@ -161,13 +161,6 @@ namespace Simpleverse.Repository.Db
 			Join(builder, filter);
 			Filter(builder, filter);
 		}
-
-		//protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter) { }
-
-		//protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
-		//{
-		//	return filterSetup.Get(() => Activator.CreateInstance<TFilter>());
-		//}
 		protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
 		{
 			return filterSetup.Get(
@@ -334,17 +327,6 @@ namespace Simpleverse.Repository.Db
 		{
 			return builder.AsUpdate();
 		}
-
-		//protected virtual void Set(QueryBuilder<TModel> builder, TUpdate update)
-		//{
-		//	if (update is UpdateOptions<TModel> updateOptions)
-		//		updateOptions.Apply(builder);
-		//}
-
-		//protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
-		//{
-		//	return updateSetup.Get(() => Activator.CreateInstance<TUpdate>());
-		//}
 
 		protected virtual TUpdate GetUpdate(Action<TUpdate> updateSetup)
 		{
@@ -672,54 +654,6 @@ namespace Simpleverse.Repository.Db
 			: base(repository, source)
 		{
 		}
-
-		//protected override TModel GetUpdate(Action<TModel> updateSetup)
-		//{
-		//	return updateSetup.Get(
-		//		() => ChangeProxyFactory.Create<TModel>()
-		//	);
-		//}
-
-		//protected override void Set(QueryBuilder<TModel> builder, TModel update)
-		//{
-		//	base.Set(builder, update);
-
-		//	var changeTrack = update as IChangeTrack;
-		//	if (changeTrack == null)
-		//		return;
-
-		//	foreach (var propertyName in changeTrack.Changed)
-		//	{
-		//		var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
-		//		if (property is null)
-		//			continue;
-
-		//		var column = builder.Table.Column(property.Name);
-		//		var value = property.GetValue(update);
-
-		//		if (value is string stringValue)
-		//		{
-		//			builder.Set(
-		//				column,
-		//				stringValue
-		//			);
-		//		}
-		//		else if (value is DateTime dateTimeValue)
-		//		{
-		//			builder.Set(
-		//				column,
-		//				dateTimeValue
-		//			);
-		//		}
-		//		else
-		//		{
-		//			builder.Set(
-		//				column,
-		//				value
-		//			);
-		//		}
-		//	}
-		//}
 	}
 
 	public class Entity<T> : Entity<T, T, DbQueryOptions>
@@ -729,57 +663,5 @@ namespace Simpleverse.Repository.Db
 			: base(repository, source)
 		{
 		}
-
-		//protected override T GetFilter(Action<T> filterSetup)
-		//{
-		//	return filterSetup.Get(
-		//		() => ChangeProxyFactory.Create<T>()
-		//	);
-		//}
-
-		//protected override void Filter(QueryBuilder<T> builder, T filter)
-		//{
-		//	base.Filter(builder, filter);
-
-		//	var changeTrack = filter as IChangeTrack;
-		//	if (changeTrack == null)
-		//		return;
-
-		//	foreach (var propertyName in changeTrack.Changed)
-		//	{
-		//		var property = builder.Table.Meta.Properties.FirstOrDefault(x => x.Name == propertyName);
-		//		if (property is null)
-		//			continue;
-
-		//		var column = builder.Table.Column(property.Name);
-		//		var value = property.GetValue(filter);
-
-		//		if (value is null)
-		//		{
-		//			builder.WhereNull(column);
-		//		}
-		//		else if (value is string stringValue)
-		//		{
-		//			builder.Where(
-		//				column,
-		//				stringValue
-		//			);
-		//		}
-		//		else if (value is DateTime dateTimeValue)
-		//		{
-		//			builder.Where(
-		//				column,
-		//				dateTimeValue
-		//			);
-		//		}
-		//		else
-		//		{
-		//			builder.Where(
-		//				column,
-		//				value
-		//			);
-		//		}
-		//	}
-		//}
 	}
 }
