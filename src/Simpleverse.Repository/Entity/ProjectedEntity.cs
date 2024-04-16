@@ -90,7 +90,7 @@ namespace Simpleverse.Repository.Entity
 		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> ListAsync<T>(GetFilter(filterSetup), optionsSetup.Get());
 
-		public async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
+		public virtual async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
 		{
 			var models = await ListAsync<TModel>(filter, options);
 			if (models == null)

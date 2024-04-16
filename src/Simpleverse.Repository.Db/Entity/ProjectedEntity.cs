@@ -104,7 +104,10 @@ namespace Simpleverse.Repository.Db.Entity
 		public Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null)
 			=> ListAsync<T>(connection, GetFilter(filterSetup), optionsSetup.Get(), transaction: transaction);
 
-		public async Task<IEnumerable<TProjection>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
+		public override sealed Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
+			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => ListAsync(conn, filter, options, tran));
+
+		public virtual async Task<IEnumerable<TProjection>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 		{
 			var models = await ListAsync<TModel>(connection, filter, options, transaction);
 			if (models == null)
