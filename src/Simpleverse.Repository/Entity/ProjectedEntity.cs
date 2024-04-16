@@ -78,21 +78,15 @@ namespace Simpleverse.Repository.Entity
 
 		#region List
 
-		public async Task<IEnumerable<TProjection>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			var models = await ListAsync<TModel>(filterSetup, optionsSetup);
-			if (models == null)
-				return default;
-
-			return models.Select(Instance);
-		}
+		public Task<IEnumerable<TProjection>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> ListAsync(GetFilter(filterSetup), optionsSetup.Get());
 
 		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> ListAsync<T>(GetFilter(filterSetup), optionsSetup.Get());
 
 		public virtual async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
 		{
-			var models = await ListAsync<TModel>(filter, options);
+			var models = await _entity.ListAsync(filter, options);
 			if (models == null)
 				return default;
 

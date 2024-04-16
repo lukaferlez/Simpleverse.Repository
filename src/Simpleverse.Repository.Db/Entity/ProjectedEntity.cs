@@ -109,7 +109,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 		public virtual async Task<IEnumerable<TProjection>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 		{
-			var models = await ListAsync<TModel>(connection, filter, options, transaction);
+			var models = await _entity.ListAsync(connection, filter, options, transaction);
 			if (models == null)
 				return default;
 
