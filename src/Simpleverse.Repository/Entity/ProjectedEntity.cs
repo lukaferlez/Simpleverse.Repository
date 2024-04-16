@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Simpleverse.Repository.ChangeTracking;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace Simpleverse.Repository.Entity
 		where TProjection : class, IProject<TModel>
 		where TEntity : IEntity<TModel, TUpdate, TFilter, TOptions>
 		where TModel : class, new()
-		where TFilter : class
+		where TFilter : class, new()
 		where TUpdate : class
 		where TOptions : class, new()
 	{
@@ -31,53 +32,55 @@ namespace Simpleverse.Repository.Entity
 			_creator = creator;
 		}
 
+		#region IAdd
+
 		public Task<int> AddAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-		{
-			return _entity.AddAsync(model.Model, OutputMapRedirect(new[] { model }, outputMap));
-		}
+			=> AddAsync(new[] { model }, outputMap);
 
-		public Task<int> AddAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-		{
-			return _entity.AddAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
-		}
+		public virtual Task<int> AddAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+			=> _entity.AddAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
 
-		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return _entity.DeleteAsync(filterSetup, optionsSetup);
-		}
+		#endregion
 
-		public Task<bool> DeleteAsync(TProjection model)
-		{
-			return _entity.DeleteAsync(model.Model);
-		}
+		#region IDelete
 
-		public Task<int> DeleteAsync(IEnumerable<TProjection> models)
-		{
-			return _entity.DeleteAsync(models.Select(x => x.Model));
-		}
+		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> _entity.DeleteAsync(filterSetup, optionsSetup);
 
-		public Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
-		{
-			return _entity.ExistsAsync(filterSetup);
-		}
+		public async Task<bool> DeleteAsync(TProjection model)
+			=> await DeleteAsync(new[] { model }) > 0;
+
+		public virtual Task<int> DeleteAsync(IEnumerable<TProjection> models)
+			=> _entity.DeleteAsync(models.Select(x => x.Model));
+
+		#endregion
+
+		#region IQuery
+
+		public virtual async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
+			 => await GetAsync(filterSetup, null) != null;
+
+		#region Get
 
 		public async Task<TProjection> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
-			var model = await _entity.GetAsync(filterSetup, optionsSetup);
+			var model = await GetAsync<TModel>(filterSetup, optionsSetup);
 			if (model == null)
-				return default;
+				return null;
 
 			return Instance(model);
 		}
 
-		public Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return _entity.GetAsync<T>(filterSetup, optionsSetup);
-		}
+		public virtual async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+			=> (await ListAsync<T>(filterSetup, optionsSetup)).FirstOrDefault();
+
+		#endregion
+
+		#region List
 
 		public async Task<IEnumerable<TProjection>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 		{
-			var models = await _entity.ListAsync(filterSetup, optionsSetup);
+			var models = await ListAsync<TModel>(filterSetup, optionsSetup);
 			if (models == null)
 				return default;
 
@@ -85,53 +88,77 @@ namespace Simpleverse.Repository.Entity
 		}
 
 		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-		{
-			return _entity.ListAsync<T>(filterSetup, optionsSetup);
-		}
+			=> ListAsync<T>(GetFilter(filterSetup), optionsSetup.Get());
 
 		public async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
 		{
-			var models = await _entity.ListAsync(filter, options);
+			var models = await ListAsync<TModel>(filter, options);
 			if (models == null)
 				return default;
 
 			return models.Select(Instance);
 		}
 
-		public Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
-		{
-			return _entity.ListAsync<T>(filter, options);
-		}
+		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
+			=> _entity.ListAsync<T>(filter, options);
 
-		public Task<TResult?> MaxAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
-			=> _entity.MaxAsync<TResult>(columName, filterSetup);
+		#endregion
+
+		#endregion
+
+		#region IAggregate
+
+		#region Max
 
 		public Task<TResult?> MaxAsync<TResult>(string columnName) where TResult : struct
-			=> _entity.MaxAsync<TResult>(columnName);
+			=> MaxAsync<TResult>(columnName, null);
 
-		public Task<TResult?> MinAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
-			=> _entity.MinAsync<TResult>(columName, filterSetup);
+		public virtual Task<TResult?> MaxAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
+			=> _entity.MaxAsync<TResult>(columName, filterSetup);
+
+		#endregion
+
+		#region Min
 
 		public Task<TResult?> MinAsync<TResult>(string columnName) where TResult : struct
-			=> _entity.MinAsync<TResult>(columnName);
+			=> MinAsync<TResult>(columnName, null);
 
-		public Task<(int Deleted, int Added)> ReplaceAsync(Action<TFilter> filterSetup, IEnumerable<TProjection> models)
+		public virtual Task<TResult?> MinAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
+			=> _entity.MinAsync<TResult>(columName, filterSetup);
+
+		#endregion
+
+		#endregion
+
+		#region IDelete
+
+		public virtual Task<(int Deleted, int Added)> ReplaceAsync(Action<TFilter> filterSetup, IEnumerable<TProjection> models)
 			=> _entity.ReplaceAsync(filterSetup, models.Select(x => x.Model));
 
-		public Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		#endregion
+
+		#region IUpdate
+
+		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> _entity.UpdateAsync(updateSetup, filterSetup, optionsSetup);
 
 		public Task<int> UpdateAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> _entity.UpdateAsync(model.Model, OutputMapRedirect(new[] { model }, outputMap));
+			=> UpdateAsync(new[] { model }, outputMap);
 
-		public Task<int> UpdateAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+		public virtual Task<int> UpdateAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
 			=> _entity.UpdateAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
 
-		public Task<int> UpsertAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> _entity.UpsertAsync(model.Model, OutputMapRedirect(new[] { model }, outputMap));
+		#endregion
 
-		public Task<int> UpsertAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+		#region IUpsert
+
+		public Task<int> UpsertAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+			=> UpsertAsync(new[] { model }, outputMap);
+
+		public virtual Task<int> UpsertAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
 			=> _entity.UpsertAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
+
+		#endregion
 
 		protected Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> OutputMapRedirect(
 			IEnumerable<TProjection> entitiesOfT,
@@ -157,13 +184,20 @@ namespace Simpleverse.Repository.Entity
 
 			return (TProjection)_constructorMethod.Invoke(new[] { model });
 		}
+
+		protected TFilter GetFilter(Action<TFilter> filterSetup)
+		{
+			return filterSetup.Get(
+				() => ChangeProxyFactory.Create<TFilter>()
+			);
+		}
 	}
 
 	public class ProjectedEntity<TProjection, TModel, TUpdate, TFilter, TOptions>
 		: ProjectedEntity<TProjection, IEntity<TModel, TUpdate, TFilter, TOptions>, TModel, TUpdate, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class
+		where TFilter : class, new()
 		where TUpdate : class
 		where TOptions : class, new()
 	{
@@ -182,7 +216,7 @@ namespace Simpleverse.Repository.Entity
 		: ProjectedEntity<TProjection, TModel, TModel, TFilter, TOptions>, IProjectedEntity<TProjection, TModel, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class
+		where TFilter : class, new()
 		where TOptions : class, new()
 	{
 		public ProjectedEntity(IEntity<TModel, TFilter, TOptions> entity)

@@ -31,7 +31,7 @@ namespace Simpleverse.Repository.Db.Entity
 			Source = source;
 		}
 
-		#region Fetch
+		#region IQuery
 
 		#region Get
 
@@ -103,7 +103,7 @@ namespace Simpleverse.Repository.Db.Entity
 		public Task<IEnumerable<TModel>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 			=> ListAsync<TModel>(connection, filter, options, transaction);
 
-		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
+		public Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
 			=> Repository.ExecuteAsync((conn, tran) => ListAsync<T>(conn, filter, options, transaction: tran));
 		public virtual Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
 		{
@@ -148,57 +148,6 @@ namespace Simpleverse.Repository.Db.Entity
 			Join(builder, filter);
 			Filter(builder, filter);
 		}
-		protected virtual TFilter GetFilter(Action<TFilter> filterSetup)
-		{
-			return filterSetup.Get(
-				() => ChangeProxyFactory.Create<TFilter>()
-			);
-		}
-
-		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter)
-		{
-			var changeTrack = filter as IChangeTrack;
-			if (changeTrack == null)
-				return;
-
-			foreach (var propertyName in changeTrack.Changed)
-			{
-				var property = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == propertyName);
-				if (property is null)
-					continue;
-
-				var column = builder.Table.Column(property.Name);
-
-				var filterProperty = TypeMeta.Get(filter.GetType()).Properties.Single(x => x.Name == propertyName);
-				var value = filterProperty.GetValue(filter);
-
-				if (value is null)
-				{
-					builder.WhereNull(column);
-				}
-				else if (value is string stringValue)
-				{
-					builder.Where(
-						column,
-						stringValue
-					);
-				}
-				else if (value is DateTime dateTimeValue)
-				{
-					builder.Where(
-						column,
-						dateTimeValue
-					);
-				}
-				else
-				{
-					builder.Where(
-						column,
-						value
-					);
-				}
-			}
-		}
 
 		#endregion
 
@@ -213,7 +162,6 @@ namespace Simpleverse.Repository.Db.Entity
 				(conn, tran) => AddAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
 			);
 		}
-
 		public async Task<int> AddAsync(
 			IEnumerable<TModel> models,
 			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
@@ -464,47 +412,46 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#endregion
 
+		#region IAggregate
+
 		#region Min		
 
 		public Task<TResult?> MinAsync<TResult>(string columnName)
 			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnName));
+			=> MinAsync<TResult>(Source.Column(columnName), null);
 		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
 			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction);
 
-		public Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression)
+		public Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
 			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnExpression));
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, IDbTransaction transaction = null)
+			=> MinAsync<TResult>(Source.Column(columnName), filterSetup);
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
 			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnExpression), transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction);
 
-		protected virtual Task<TResult?> MinAsync<TResult>(Selector column)
+		public Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null)
 			where TResult : struct
-			=> Repository.ExecuteAsync((conn, tran) => MinAsync<TResult>(conn, column, transaction: tran));
-		protected virtual Task<TResult?> MinAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
+			=> MinAsync<TResult>(Source.Column(columnExpression), filterSetup);
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
 			where TResult : struct
-			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Min()} FROM {Source}", transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction: transaction);
 
-		public virtual Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup)
+		protected virtual Task<TResult?> MinAsync<TResult>(Selector column, Action<TFilter> filterSetup = null)
 			where TResult : struct
-		{
-			return Repository.ExecuteAsync(
-				(conn, tran) => MinAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
-			);
-		}
+			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => MinAsync<TResult>(conn, column, filterSetup, tran));
+
 		public virtual Task<TResult?> MinAsync<TResult>(
 			IDbConnection connection,
-			string columnName,
-			Action<TFilter> filterSetup,
+			Selector column,
+			Action<TFilter> filterSetup = null,
 			IDbTransaction transaction = null
 		)
 			where TResult : struct
 		{
 			var builder = Source.AsQuery();
 			var query = builder.AddTemplate($@"
-				SELECT {Source.Column(columnName).Min()}
+				SELECT {column.Min()}
 				FROM
 					{Source}
 					/**join**/
@@ -524,36 +471,32 @@ namespace Simpleverse.Repository.Db.Entity
 
 		public Task<TResult?> MaxAsync<TResult>(string columnName)
 			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnName));
+			=> MaxAsync<TResult>(Source.Column(columnName), null);
 		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
 			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnName), transaction: transaction);
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction);
 
-		public Task<TResult?> MaxAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression)
+		public Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
 			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnExpression));
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, IDbTransaction transaction = null)
+			=> MaxAsync<TResult>(Source.Column(columnName), filterSetup);
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
 			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), transaction);
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction);
 
-		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column)
+		public Task<TResult?> MaxAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null)
+			where TResult : struct
+			=> MaxAsync<TResult>(Source.Column(columnExpression), filterSetup);
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			where TResult : struct
+			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction);
+
+		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column, Action<TFilter> filterSetup = null)
 			where TResult : struct
 			=> Repository.ExecuteAsync((conn, tran) => MaxAsync<TResult>(conn, column, transaction: tran));
-		protected virtual Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Selector column, IDbTransaction transaction = null)
-			where TResult : struct
-			=> connection.QueryFirstOrDefaultAsync<TResult?>($"SELECT {column.Max()} FROM {Source}", transaction: transaction);
-
-		public virtual Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup)
-			where TResult : struct
-		{
-			return Repository.ExecuteAsync(
-				(conn, tran) => MaxAsync<TResult>(conn, columnName, filterSetup, transaction: tran)
-			);
-		}
 		public virtual Task<TResult?> MaxAsync<TResult>(
 			IDbConnection connection,
-			string columnName,
-			Action<TFilter> filterSetup,
+			Selector column,
+			Action<TFilter> filterSetup = null,
 			IDbTransaction transaction = null
 		)
 			where TResult : struct
@@ -562,7 +505,7 @@ namespace Simpleverse.Repository.Db.Entity
 			Filter(builder, GetFilter(filterSetup));
 
 			var query = builder.AddTemplate($@"
-					SELECT {Source.Column(columnName).Max()}
+					SELECT {column.Max()}
 					FROM
 						{Source}
 						/**join**/
@@ -574,6 +517,8 @@ namespace Simpleverse.Repository.Db.Entity
 			);
 			return connection.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters, transaction: transaction);
 		}
+
+		#endregion
 
 		#endregion
 
@@ -619,6 +564,58 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#endregion
 
+		protected TFilter GetFilter(Action<TFilter> filterSetup)
+		{
+			return filterSetup.Get(
+				() => ChangeProxyFactory.Create<TFilter>()
+			);
+		}
+
+		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter)
+		{
+			var changeTrack = filter as IChangeTrack;
+			if (changeTrack == null)
+				return;
+
+			foreach (var propertyName in changeTrack.Changed)
+			{
+				var property = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == propertyName);
+				if (property is null)
+					continue;
+
+				var column = builder.Table.Column(property.Name);
+
+				var filterProperty = TypeMeta.Get(filter.GetType()).Properties.Single(x => x.Name == propertyName);
+				var value = filterProperty.GetValue(filter);
+
+				if (value is null)
+				{
+					builder.WhereNull(column);
+				}
+				else if (value is string stringValue)
+				{
+					builder.Where(
+						column,
+						stringValue
+					);
+				}
+				else if (value is DateTime dateTimeValue)
+				{
+					builder.Where(
+						column,
+						dateTimeValue
+					);
+				}
+				else
+				{
+					builder.Where(
+						column,
+						value
+					);
+				}
+			}
+		}
+
 		protected virtual void Join(QueryBuilder<TModel> builder, TFilter filter) { }
 
 		protected void IfChanged<T, R>(T filter, Expression<Func<T, R>> expression, Action action)
@@ -630,6 +627,9 @@ namespace Simpleverse.Repository.Db.Entity
 					action();
 			}
 		}
+
+		Task<R> IEntity<TModel, TUpdate, TFilter, TOptions>.ExecuteAsyncWithTransaction<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
+			=> Repository.ExecuteAsyncWithTransaction(function);
 	}
 
 	public class Entity<TModel, TFilter, TOptions>

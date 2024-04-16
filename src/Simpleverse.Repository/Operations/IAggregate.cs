@@ -14,10 +14,10 @@ namespace Simpleverse.Repository.Operations
 
 	public interface IAggregate<TFilter> : IAggregate
 	{
-		Task<TResult?> MaxAsync<TResult>(string columName, Action<TFilter> filterSetup)
+		Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
 			where TResult : struct;
 
-		Task<TResult?> MinAsync<TResult>(string columName, Action<TFilter> filterSetup)
+		Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
 			where TResult : struct;
 	}
 }

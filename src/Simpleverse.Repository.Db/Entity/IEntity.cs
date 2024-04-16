@@ -1,4 +1,7 @@
 ﻿using Simpleverse.Repository.Db.Operations;
+using System;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Entity
 {
@@ -18,6 +21,7 @@ namespace Simpleverse.Repository.Db.Entity
 		where TFilter : class
 		where TOptions : class, new()
 	{
+		internal Task<R> ExecuteAsyncWithTransaction<R>(Func<IDbConnection, IDbTransaction, Task<R>> function);
 	}
 
 	public interface IEntity<TModel, TFilter, TOptions>

@@ -16,10 +16,10 @@ namespace Simpleverse.Repository.Db.Operations
 
 	public interface IAggregateDb<TFilter> : IAggregateDb, IAggregate<TFilter>
 	{
-		Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columName, Action<TFilter> filterSetup, IDbTransaction transaction = null)
+		Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
 			where TResult : struct;
 
-		Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columName, Action<TFilter> filterSetup, IDbTransaction transaction = null)
+		Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
 			where TResult : struct;
 	}
 }
