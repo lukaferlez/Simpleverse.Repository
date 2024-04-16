@@ -13,7 +13,7 @@ namespace Simpleverse.Repository.Db.Entity
 		IProjectedEntity<TProjection, TModel, TUpdate, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class, new()
+		where TFilter : class
 		where TUpdate : class
 		where TOptions : DbQueryOptions, new()
 	{
@@ -199,7 +199,7 @@ namespace Simpleverse.Repository.Db.Entity
 		: ProjectedEntity<TProjection, TModel, TModel, TFilter, TOptions>, IProjectedEntity<TProjection, TModel, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class, new()
+		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
 		public ProjectedEntity(IEntity<TModel, TFilter, TOptions> entity)

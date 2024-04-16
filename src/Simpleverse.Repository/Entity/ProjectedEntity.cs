@@ -13,7 +13,7 @@ namespace Simpleverse.Repository.Entity
 		where TProjection : class, IProject<TModel>
 		where TEntity : IEntity<TModel, TUpdate, TFilter, TOptions>
 		where TModel : class, new()
-		where TFilter : class, new()
+		where TFilter : class
 		where TUpdate : class
 		where TOptions : class, new()
 	{
@@ -197,7 +197,7 @@ namespace Simpleverse.Repository.Entity
 		: ProjectedEntity<TProjection, IEntity<TModel, TUpdate, TFilter, TOptions>, TModel, TUpdate, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class, new()
+		where TFilter : class
 		where TUpdate : class
 		where TOptions : class, new()
 	{
@@ -216,7 +216,7 @@ namespace Simpleverse.Repository.Entity
 		: ProjectedEntity<TProjection, TModel, TModel, TFilter, TOptions>, IProjectedEntity<TProjection, TModel, TFilter, TOptions>
 		where TProjection : class, IProject<TModel>
 		where TModel : class, new()
-		where TFilter : class, new()
+		where TFilter : class
 		where TOptions : class, new()
 	{
 		public ProjectedEntity(IEntity<TModel, TFilter, TOptions> entity)
