@@ -5,6 +5,8 @@ namespace Simpleverse.Repository
 {
 	public static class Settings
 	{
+		public static bool ForceUseOfVirtualProperties { get; set; } = true;
+
 		public static ILoggerFactory LoggerFactory { get; set; }
 
 		public static ILogger GetLogger<T>()

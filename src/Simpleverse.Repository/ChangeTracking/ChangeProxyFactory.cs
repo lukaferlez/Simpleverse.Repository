@@ -292,7 +292,12 @@ namespace Simpleverse.Repository.ChangeTracking
 				return;
 
 			if (!sourceProperty.SetMethod.IsVirtual)
-				throw new NotSupportedException("Non virtual write properties are not supported.");
+			{
+				if (Settings.ForceUseOfVirtualProperties)
+					throw new NotSupportedException("Non virtual write properties are not supported.");
+				else
+					return;
+			}
 
 			var propertyName = sourceProperty.Name;
 			var propertyType = sourceProperty.PropertyType;
