@@ -10,6 +10,7 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IUpdateDb<T> : IUpdate<T>
 		where T : class
 	{
+		Task<int> UpdateAsync(IEnumerable<T> models, Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap);
 		Task<int> UpdateAsync(
 			IDbConnection connection,
 			IEnumerable<T> models,

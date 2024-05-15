@@ -17,7 +17,7 @@ namespace Simpleverse.Repository.Db.Entity
 {
 	public class Entity<TModel, TUpdate, TFilter, TOptions>
 		: IEntity<TModel, TUpdate, TFilter, TOptions>, Repository.Entity.IEntity<TModel, TUpdate, TFilter, TOptions>
-		where TModel : class, new()
+		where TModel : class
 		where TFilter : class
 		where TUpdate : class
 		where TOptions : DbQueryOptions, new()
@@ -153,24 +153,22 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region Add
 
-		public async Task<int> AddAsync(
-			TModel model,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => AddAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
-			);
-		}
+		public Task<int> AddAsync(TModel model)
+			=> AddAsync(new[] { model });
+
+		public Task<int> AddAsync(IEnumerable<TModel> models)
+			=> AddAsync(models, outputMap: OutputMapper.MapOnce);
+
 		public async Task<int> AddAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) => AddAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+
 		public virtual Task<int> AddAsync(
 			IDbConnection connection,
 			IEnumerable<TModel> models,
@@ -196,24 +194,22 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region ByModel
 
-		public async Task<int> UpdateAsync(
-			TModel model,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => UpdateAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
-			);
-		}
+		public Task<int> UpdateAsync(TModel model)
+			=> UpdateAsync(new[] { model });
+
+		public Task<int> UpdateAsync(IEnumerable<TModel> models)
+			=> UpdateAsync(models, outputMap: OutputMapper.MapOnce);
+
 		public async Task<int> UpdateAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) => UpdateAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+
 		public virtual async Task<int> UpdateAsync(
 			IDbConnection connection,
 			IEnumerable<TModel> models,
@@ -318,24 +314,22 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region Upsert
 
-		public async Task<int> UpsertAsync(
-			TModel model,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
-		)
-		{
-			return await Repository.ExecuteAsync(
-				(conn, tran) => UpsertAsync(conn, new[] { model }, outputMap: outputMap, transaction: tran)
-			);
-		}
+		public Task<int> UpsertAsync(TModel model)
+			=> UpsertAsync(new[] { model });
+
+		public Task<int> UpsertAsync(IEnumerable<TModel> models)
+			=> UpsertAsync(models, outputMap: OutputMapper.MapOnce);
+
 		public async Task<int> UpsertAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
 		)
 		{
 			return await Repository.ExecuteAsyncWithTransaction(
 				(conn, tran) => UpsertAsync(conn, models, outputMap: outputMap, transaction: tran)
 			);
 		}
+
 		public virtual Task<int> UpsertAsync(
 			IDbConnection connection,
 			IEnumerable<TModel> models,
@@ -634,7 +628,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 	public class Entity<TModel, TFilter, TOptions>
 		: Entity<TModel, TModel, TFilter, TOptions>, IEntity<TModel, TFilter, TOptions>
-		where TModel : class, new()
+		where TModel : class
 		where TFilter : class
 		where TOptions : DbQueryOptions, new()
 	{
@@ -646,7 +640,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 	public class Entity<T, TOptions>
 		: Entity<T, T, TOptions>, IEntity<T, TOptions>
-		where T : class, new()
+		where T : class
 		where TOptions : DbQueryOptions, new()
 	{
 		public Entity(DbRepository repository, Table<T> source)
@@ -657,7 +651,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 	public class Entity<T>
 		: Entity<T, DbQueryOptions>, IEntity<T>
-		where T : class, new()
+		where T : class
 	{
 		public Entity(DbRepository repository, Table<T> source)
 			: base(repository, source)

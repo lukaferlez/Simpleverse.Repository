@@ -28,7 +28,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			var projection = new ProjectedIdentity() { Name = "Test" };
 
 			// act
-			await entity.AddAsync(projection, OutputMapper.Map);
+			await entity.AddAsync(projection);
 
 			// assert
 			Assert.Equal(1, projection.Model.Id);
@@ -45,7 +45,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			};
 
 			// act
-			await entity.AddAsync(projections, OutputMapper.Map);
+			await entity.AddAsync(projections);
 
 			// assert
 			Assert.NotEqual(0, projections.First().Model.Id);

@@ -29,7 +29,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region IAdd
 
-		public override sealed Task<int> AddAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+		public Task<int> AddAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap)
 			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => AddAsync(conn, models, outputMap, tran));
 
 		public virtual Task<int> AddAsync(
@@ -176,7 +176,7 @@ namespace Simpleverse.Repository.Db.Entity
 		public Task<int> UpdateAsync(IDbConnection connection, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null)
 			=> _entity.UpdateAsync(connection, updateSetup, filterSetup, optionsSetup, transaction: transaction);
 
-		public override sealed Task<int> UpdateAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+		public Task<int> UpdateAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap)
 			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => UpdateAsync(conn, models, outputMap, tran));
 
 		public Task<int> UpdateAsync(IDbConnection connection, IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null, IDbTransaction transaction = null)
@@ -186,7 +186,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region IUpsert
 
-		public override sealed Task<int> UpsertAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
+		public Task<int> UpsertAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap)
 			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => UpsertAsync(conn, models, outputMap, tran));
 
 		public Task<int> UpsertAsync(IDbConnection connection, IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null, IDbTransaction transaction = null)
@@ -196,6 +196,20 @@ namespace Simpleverse.Repository.Db.Entity
 
 		Task<R> IEntity<TProjection, TUpdate, TFilter, TOptions>.ExecuteAsyncWithTransaction<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
 			=> _entity.ExecuteAsyncWithTransaction(function);
+
+		protected Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> OutputMapRedirect(
+			IEnumerable<TProjection> entitiesOfT,
+			Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
+		)
+		{
+			if (outputMap == null)
+				return null;
+
+			return (entities, results, propertiesToMatch, propertiesToMap) =>
+			{
+				outputMap(entitiesOfT, results.Select(Instance), propertiesToMatch, propertiesToMap);
+			};
+		}
 	}
 
 	public class ProjectedEntity<TProjection, TModel, TFilter, TOptions>

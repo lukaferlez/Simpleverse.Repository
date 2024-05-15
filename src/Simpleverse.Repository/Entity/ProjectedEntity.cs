@@ -34,11 +34,11 @@ namespace Simpleverse.Repository.Entity
 
 		#region IAdd
 
-		public Task<int> AddAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> AddAsync(new[] { model }, outputMap);
+		public Task<int> AddAsync(TProjection model)
+			=> AddAsync(new[] { model });
 
-		public virtual Task<int> AddAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> _entity.AddAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
+		public virtual Task<int> AddAsync(IEnumerable<TProjection> models)
+			=> _entity.AddAsync(models.Select(x => x.Model));
 
 		#endregion
 
@@ -136,37 +136,23 @@ namespace Simpleverse.Repository.Entity
 		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
 			=> _entity.UpdateAsync(updateSetup, filterSetup, optionsSetup);
 
-		public Task<int> UpdateAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> UpdateAsync(new[] { model }, outputMap);
+		public Task<int> UpdateAsync(TProjection model)
+			=> UpdateAsync(new[] { model });
 
-		public virtual Task<int> UpdateAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> _entity.UpdateAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
+		public virtual Task<int> UpdateAsync(IEnumerable<TProjection> models)
+			=> _entity.UpdateAsync(models.Select(x => x.Model));
 
 		#endregion
 
 		#region IUpsert
 
-		public Task<int> UpsertAsync(TProjection model, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> UpsertAsync(new[] { model }, outputMap);
+		public Task<int> UpsertAsync(TProjection model)
+			=> UpsertAsync(new[] { model });
 
-		public virtual Task<int> UpsertAsync(IEnumerable<TProjection> models, Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null)
-			=> _entity.UpsertAsync(models.Select(x => x.Model), OutputMapRedirect(models, outputMap));
+		public virtual Task<int> UpsertAsync(IEnumerable<TProjection> models)
+			=> _entity.UpsertAsync(models.Select(x => x.Model));
 
 		#endregion
-
-		protected Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> OutputMapRedirect(
-			IEnumerable<TProjection> entitiesOfT,
-			Action<IEnumerable<TProjection>, IEnumerable<TProjection>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
-		)
-		{
-			if (outputMap == null)
-				return null;
-
-			return (entities, results, propertiesToMatch, propertiesToMap) =>
-			{
-				outputMap(entitiesOfT, results.Select(Instance), propertiesToMatch, propertiesToMap);
-			};
-		}
 
 		protected TProjection Instance(TModel model)
 		{
