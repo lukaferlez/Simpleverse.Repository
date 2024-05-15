@@ -176,12 +176,26 @@ namespace Simpleverse.Repository.ChangeTracking
 
 		private static void AddTargetTypeImplementation(this TypeBuilder typeBuilder, Type typeOfT, MethodInfo onChangeMethod)
 		{
-			if (typeOfT.IsInterface)
-				typeBuilder.AddInterfaceImplementation(typeOfT);
-			else
-				typeBuilder.SetParent(typeOfT);
-
 			var properties = ExtractProperties(typeOfT);
+
+			if (typeOfT.IsInterface)
+			{
+				if (properties.Any(x => !x.CanWrite))
+					throw new NotSupportedException("Non write interface properties are not supported.");
+
+				typeBuilder.AddInterfaceImplementation(typeOfT);
+			}
+			else
+			{
+				if (Settings.ForceUseOfVirtualProperties)
+				{
+					if (properties.Any(x => x.CanWrite && (!x.SetMethod.IsVirtual || x.SetMethod.IsFinal)))
+						throw new NotSupportedException("Non virtual or final write properties are not supported.");
+				}
+
+				typeBuilder.SetParent(typeOfT);
+			}
+
 			foreach (var property in properties)
 			{
 				if (typeOfT.IsInterface)
@@ -233,9 +247,6 @@ namespace Simpleverse.Repository.ChangeTracking
 
 		private static void AddInterfaceProxyProperty(this TypeBuilder typeBuilder, Type typeOfT, PropertyInfo sourceProperty, MethodInfo onChangeMethod)
 		{
-			if (!sourceProperty.CanWrite)
-				throw new NotSupportedException("Non write interface properties are not supported.");
-
 			var propertyName = sourceProperty.Name;
 			var propertyType = sourceProperty.PropertyType;
 
@@ -292,12 +303,10 @@ namespace Simpleverse.Repository.ChangeTracking
 				return;
 
 			if (!sourceProperty.SetMethod.IsVirtual)
-			{
-				if (Settings.ForceUseOfVirtualProperties)
-					throw new NotSupportedException("Non virtual write properties are not supported.");
-				else
-					return;
-			}
+				return;
+
+			if (sourceProperty.SetMethod.IsFinal)
+				return;
 
 			var propertyName = sourceProperty.Name;
 			var propertyType = sourceProperty.PropertyType;

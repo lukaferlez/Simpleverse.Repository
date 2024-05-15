@@ -36,6 +36,54 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			Assert.Contains("[I].[Active] = @I_Active", query);
 		}
 
+		//[Fact]
+		//public async Task ListAsync_WithNonVirtual_ShouldThrowNotSupported()
+		//{
+		//	// arange
+		//	var repositoryHelper = new DapperHelper();
+		//	var entity = new EntityNonVirtual(repositoryHelper.Instance());
+
+		//	// act
+		//	await Assert.ThrowsAsync<NotSupportedException>(
+		//		async () =>
+		//		{
+		//			await entity.ListAsync(
+		//				filter =>
+		//				{
+		//					filter.Name = "test";
+		//					filter.Active = false;
+		//				}
+		//			);
+		//		}
+		//	);
+		//}
+
+		[Fact]
+		public async Task ListAsync_WithNonVirtual_WithParametersTest()
+		{
+			// arange
+			Settings.ForceUseOfVirtualProperties = false;
+			var repositoryHelper = new DapperHelper();
+			var entity = new EntityNonVirtual(repositoryHelper.Instance());
+
+			// act
+			await entity.ListAsync(
+				filter =>
+				{
+					filter.Name = "test";
+					filter.Active = false;
+				}
+			);
+
+			// assert
+			var query = repositoryHelper.Query();
+			Assert.Contains("[I].[Name] = @I_Name", query);
+			Assert.Contains("[I].[Active] = @I_Active", query);
+
+			// cleanup
+			Settings.ForceUseOfVirtualProperties = true;
+		}
+
 		[Fact]
 		public async Task UpdateAsyncWithParametersTest()
 		{
@@ -218,6 +266,30 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public virtual int Id { get; set; }
 		public virtual string Name { get; set; }
 		public virtual bool Active { get; set; }
+	}
+
+	public class EntityNonVirtual : Entity<EntityNonVirtualModel>
+	{
+		public EntityNonVirtual(DbRepository repository)
+			: base(repository, new Table<EntityNonVirtualModel>("I"))
+		{
+		}
+
+		protected override void Filter(QueryBuilder<EntityNonVirtualModel> builder, EntityNonVirtualModel filter)
+		{
+			base.Filter(builder, filter);
+			builder.Where(x => x.Id, filter.Id);
+			builder.Where(x => x.Name, filter.Name);
+			builder.Where(x => x.Active, filter.Active);
+		}
+	}
+
+	[Table("IEntity")]
+	public class EntityNonVirtualModel
+	{
+		public int? Id { get; set; }
+		public string Name { get; set; }
+		public bool? Active { get; set; }
 	}
 
 	public class EntityExtend : Entity<EntityModelExtended>
