@@ -11,7 +11,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 	{
 		private readonly string _connectionString = "Server=(localdb)\\mssqllocaldb;Database=tempdb;Trusted_Connection=True;MultipleActiveResultSets=true;";
 
-		public DbConnection GetConnection() => new ProfiledDbConnection(new SqlConnection(_connectionString), MiniProfiler.Current);
+		public DbConnection GetConnection() => new SqlConnection(_connectionString);
+		public DbConnection GetProfiledConnection() => new ProfiledDbConnection(new SqlConnection(_connectionString), MiniProfiler.Current);
 
 		private static string DropTable(string name) => $"IF OBJECT_ID('{name}', 'U') IS NOT NULL DROP TABLE {name};";
 		private static string DropSchema(string name) => $"IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'{name}') DROP SCHEMA {name}";

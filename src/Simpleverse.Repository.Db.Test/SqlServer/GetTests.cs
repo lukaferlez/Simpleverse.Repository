@@ -1,8 +1,8 @@
-﻿using Xunit;
-using System.Linq;
-using Dapper.Contrib.Extensions;
-using Simpleverse.Repository.Db.SqlServer;
+﻿using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.Extensions;
+using Simpleverse.Repository.Db.SqlServer;
+using System.Linq;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
@@ -19,7 +19,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		public void GetAsyncTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();

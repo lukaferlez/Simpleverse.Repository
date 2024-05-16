@@ -21,14 +21,14 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public EntityTest(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)
 		{
-			_sqlRepository = new SqlRepository(() => (ProfiledDbConnection)fixture.GetConnection());
+			_sqlRepository = new SqlRepository(() => (ProfiledDbConnection)fixture.GetProfiledConnection());
 		}
 
 		[Fact]
 		public void AddAsyncTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -50,7 +50,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public void AddAsyncWithAmbientTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -75,7 +75,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			}
 
 			// assert
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 
 				var records = connection.GetAll<Identity>();
@@ -88,7 +88,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public void ListAsyncTupleTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -141,7 +141,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public async Task AddAsync_WhenProvidedSqlRepository_InsertsRecords()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -164,7 +164,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public async Task GetAsync_WhenProvidedSqlRepository_ReturnsRecord(int count)
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -190,7 +190,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public async Task ListAsync_WhenProvidedSqlRepository_ReturnsRecords(int count)
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -216,7 +216,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public async Task UpsertAsync_WhenProvidedSqlRepositoryAndIdentityDoesntExist_InsertsRecord(int count)
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -243,7 +243,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public async Task UpsertAsync_WhenProvidedSqlRepositoryAndIdentityExists_UpdatesRecord(int count)
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -271,7 +271,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 	public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
 	{
 		public IdentityEntity(DatabaseFixture fixture)
-			: base(new DbRepository(() => fixture.GetConnection()), new Table<Identity>("I"))
+			: base(new DbRepository(() => fixture.GetProfiledConnection()), new Table<Identity>("I"))
 		{
 		}
 

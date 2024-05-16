@@ -53,39 +53,55 @@ namespace Simpleverse.Repository.Db
 		public static Task<int> ExecuteAsync(this IDbConnection conn, SqlBuilder.Template query, IDbTransaction tran = null)
 			=> conn.ExecuteAsync(query.RawSql, param: query.Parameters, transaction: tran);
 
-		public static async Task<R> ExecuteAsyncWithTransaction<R>(this IDbConnection conn, Func<IDbConnection, IDbTransaction, Task<R>> function, IDbTransaction transaction = null)
+		public static async Task<R> ExecuteAsync<R>(this IDbConnection conn, Func<IDbConnection, Task<R>> function)
 		{
 			var connectonWasClosed = conn.State == ConnectionState.Closed;
 			if (connectonWasClosed)
 				conn.Open();
 
-			var transactionWasClosed = transaction == null;
-			if (transactionWasClosed)
-				transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
-
 			try
 			{
-				var result = await function(conn, transaction);
-				// Transaction even after calling BeginTransaction if a mocked DbConnection is used
-				if (transactionWasClosed && transaction != null)
-					transaction.Commit();
-
-				return result;
-			}
-			catch
-			{
-				if (transactionWasClosed && transaction != null)
-					transaction.Rollback();
-				throw;
+				return await function(conn);
 			}
 			finally
 			{
-				if (transactionWasClosed && transaction != null)
-					transaction.Dispose();
-
 				if (connectonWasClosed)
 					conn.Close();
 			}
+		}
+
+		public static Task<R> ExecuteAsyncWithTransaction<R>(this IDbConnection connection, Func<IDbConnection, IDbTransaction, Task<R>> function, IDbTransaction transaction = null)
+		{
+			return connection.ExecuteAsync(
+				async (conn) =>
+				{
+					var transactionWasClosed = transaction == null;
+					if (transactionWasClosed)
+						transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+					try
+					{
+						var result = await function(conn, transaction);
+
+						// Transaction even after calling BeginTransaction if a mocked DbConnection is used
+						if (transactionWasClosed && transaction != null)
+							transaction.Commit();
+
+						return result;
+					}
+					catch
+					{
+						if (transactionWasClosed && transaction != null)
+							transaction.Rollback();
+						throw;
+					}
+					finally
+					{
+						if (transactionWasClosed && transaction != null)
+							transaction.Dispose();
+					}
+				}
+			);
 		}
 	}
 }

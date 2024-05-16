@@ -127,7 +127,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			var result = await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
-				async (connection, transaction, source, parameters, properties) =>
+				async (connection, source, parameters, properties) =>
 				{
 					var sb = new StringBuilder($@"
 						MERGE INTO {typeMeta.TableName} AS Target

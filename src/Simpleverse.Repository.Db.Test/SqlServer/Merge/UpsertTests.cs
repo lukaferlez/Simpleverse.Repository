@@ -1,15 +1,15 @@
-﻿using Xunit;
-using System.Linq;
-using Dapper.Contrib.Extensions;
-using System;
+﻿using Dapper.Contrib.Extensions;
+using Simpleverse.Repository.Db.Extensions;
 using Simpleverse.Repository.Db.SqlServer;
 using Simpleverse.Repository.Db.SqlServer.Merge;
-using Simpleverse.Repository.Db.Extensions;
+using System;
+using System.Linq;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 {
-    [Collection("SqlServerCollection")]
+	[Collection("SqlServerCollection")]
 	public class UpsertTests : DatabaseTestFixture
 	{
 		public UpsertTests(DatabaseFixture fixture, ITestOutputHelper output)
@@ -21,7 +21,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertAsyncExplicitKeyTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -48,7 +48,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertAsyncIdentityTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -75,7 +75,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertAsyncWriteAttributeTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -104,7 +104,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertAsyncComputedAttributeTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -134,7 +134,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncExplicitTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -168,7 +168,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncIdentityTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -202,7 +202,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncIdentityWithMapGeneratedValuesTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -237,7 +237,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncWriteAttributeTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -274,7 +274,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncComputedAttributeTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();
@@ -305,7 +305,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 					Assert.Equal(5, updatedRecord.Value);
 					Assert.Equal(new DateTime(2022, 05, 02), updatedRecord.ValueDate);
 				}
-				
+
 			}
 		}
 
@@ -313,7 +313,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertBulkAsyncComputedWithMapGeneratedValuesAttributeTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();

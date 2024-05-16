@@ -19,7 +19,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		public void UpsertAsyncExplicitKeyTest()
 		{
 			using (var profiler = Profile())
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				// arange
 				connection.Open();

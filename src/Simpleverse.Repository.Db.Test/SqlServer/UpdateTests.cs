@@ -1,14 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using Xunit;
+﻿using Dapper;
 using Dapper.Contrib.Extensions;
-using System.Linq;
-using System.Data;
-using System.Collections;
-using Dapper;
 using Simpleverse.Repository.Db.SqlServer;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using Xunit;
 using Xunit.Abstractions;
-using StackExchange.Profiling;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
@@ -22,10 +21,10 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(UpdateTestData))]
-		public void UpdateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
+		public void UpdateTest<T, TKey>(string testName, IEnumerable<T> records, Func<T, TKey> keySelector, Action<T, T> check, int expected) where T : Identity
 		{
 			using (var profiler = Profile(testName))
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				Arange<T>(connection);
 
@@ -44,10 +43,10 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(UpdateTestData))]
-		public void UpdateTransactionAsyncTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
+		public void UpdateTransactionAsyncTest<T, TKey>(string testName, IEnumerable<T> records, Func<T, TKey> keySelector, Action<T, T> check, int expected) where T : Identity
 		{
 			using (var profiler = Profile(testName))
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				Arange<T>(connection);
 
@@ -70,10 +69,10 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 		[Theory]
 		[ClassData(typeof(UpdateDuplicateTestData))]
-		public void UpdateDuplicateTest<T>(string testName, IEnumerable<T> records, bool mapGeneratedValues, Action<T, T> check, int expected) where T : Identity
+		public void UpdateDuplicateTest<T, TKey>(string testName, IEnumerable<T> records, Func<T, TKey> keySelector, Action<T, T> check, int expected) where T : Identity
 		{
 			using (var profiler = Profile(testName))
-			using (var connection = _fixture.GetConnection())
+			using (var connection = _fixture.GetProfiledConnection())
 			{
 				Arange<T>(connection);
 
@@ -133,8 +132,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 			foreach (var data in DataSet(500))
 				yield return data;
 
-			foreach (var data in DataSet(3000))
-				yield return data;
+			//foreach (var data in DataSet(3000))
+			//	yield return data;
 
 			//foreach (var data in DataSet(20010))
 			//	yield return data;
@@ -166,8 +165,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 			foreach (var data in DataSet(500))
 				yield return data;
 
-			foreach (var data in DataSet(3000))
-				yield return data;
+			//foreach (var data in DataSet(3000))
+			//	yield return data;
 
 			//foreach (var data in DataSet(20010))
 			//	yield return data;

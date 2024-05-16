@@ -1,6 +1,8 @@
 ﻿using Dapper;
 using Dapper.Contrib.Extensions;
 using Microsoft.Data.SqlClient;
+using MoreLinq;
+using Simpleverse.Repository.Db;
 using Simpleverse.Repository.Db.Meta;
 using Simpleverse.Repository.Db.SqlServer;
 using System;
@@ -58,28 +60,36 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (connection.State != ConnectionState.Open)
 				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
-			var insertedTableName = CreateTemporaryTableFromTable(connection, tableName, columnsToCopy, transaction);
+			var insertedTableName = await CreateTemporaryTableFromTable(connection, tableName, columnsToCopy, transaction);
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000 || !(connection is SqlConnection))
 			{
 				var maxParams = 2000M;
 				var batchSize = Math.Min((int)Math.Floor(maxParams / columnsToCopy.Count()), 1000);
 
-				foreach (var batch in entitiesToInsert.Batch(batchSize))
-				{
-					var (valuesQuery, parameters) = columnsToCopy.ColumnListAsValueParamaters(batch);
+				await connection.ExecuteAsyncWithTransaction(
+					async (conn, tran) =>
+					{
+						foreach (var batch in entitiesToInsert.Batch(batchSize))
+						{
+							var (valuesQuery, parameters) = columnsToCopy.ColumnListAsValueParamaters(batch);
 
-					var query = $@"
-						INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()})
-						{valuesQuery}
-					";
+							var query = $@"
+								INSERT INTO {insertedTableName} ({columnsToCopy.ColumnList()})
+								{valuesQuery}
+							";
 
-					await connection.ExecuteAsync(
-						query.ToString(),
-						parameters,
-						transaction: transaction
-					);
-				}
+							await connection.ExecuteAsync(
+								query.ToString(),
+								parameters,
+								transaction: tran
+							);
+						}
+
+						return true;
+					},
+					transaction: transaction
+				);
 			}
 			else
 			{
@@ -184,7 +194,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			var result = await connection.ExecuteAsync(
 				entitiesToGet,
 				typeMeta.PropertiesKeyAndExplicit,
-				async (connection, transaction, source, parameters, properties) =>
+				async (connection, source, parameters, properties) =>
 				{
 					var query = $@"
 						SELECT *
@@ -194,7 +204,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 								ON {properties.ColumnListEquals(" AND ")};
 					";
 
-					return await connection.QueryAsync<T>(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					return await connection.QueryAsync<T>(
+						query,
+						param: parameters,
+						commandTimeout: commandTimeout,
+						transaction: transaction
+					);
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -231,59 +246,67 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (mapGeneratedValues && !typeMeta.PropertiesKeyAndExplicit.Any())
 				throw new NotSupportedException("Output mapping inserted values is not supported without either a key or explicitkey");
 
-			var result =
-				await connection.ExecuteAsync(
-					entitiesToInsert,
-					typeMeta.PropertiesExceptKeyAndComputed,
-					async (connection, transaction, source, parameters, properties) =>
+			return await connection.ExecuteAsync(
+				entitiesToInsert,
+				typeMeta.PropertiesExceptKeyAndComputed,
+				async (connection, source, parameters, properties) =>
+				{
+					var columnList = properties.ColumnList();
+					var query = $@"
+						INSERT INTO {typeMeta.TableName} ({columnList})
+						/**OUTPUT**/
+						SELECT {columnList} FROM {source} AS Source;
+					";
+
+					var outputSource = source;
+					var outputClause = string.Empty;
+					if (mapGeneratedValues)
 					{
-						var columnList = properties.ColumnList();
-
-						var query = $@"
-							INSERT INTO {typeMeta.TableName} ({columnList})
-							/**OUTPUT**/
-							SELECT {columnList} FROM {source} AS Source;
-						";
-
-						var outputClause = string.Empty;
-						var outputSource = source;
-						if (mapGeneratedValues && typeMeta.PropertiesKey.Any())
+						if (typeMeta.PropertiesKey.Any())
 						{
-							outputSource = CreateTemporaryTableFromTable(
-							   connection,
-							   typeMeta.TableName,
-							   typeMeta.PropertiesKeyAndExplicit,
-							   transaction
+							var outputTarget = await CreateTemporaryTableFromTable(
+								connection,
+								typeMeta.TableName,
+								typeMeta.PropertiesKeyAndExplicit,
+								transaction
 							);
 
-							outputClause = OutputClause(outputSource, typeMeta.PropertiesKeyAndExplicit);
+							outputSource = outputTarget;
+							outputClause = OutputClause(outputTarget, typeMeta.PropertiesKeyAndExplicit);
 						}
+					}
 
-						var resultCount = await connection.ExecuteAsync(
-							query.Replace("/**OUTPUT**/", outputClause),
-							param: parameters,
-							commandTimeout: commandTimeout,
-							transaction: transaction
+					query = query.Replace("/**OUTPUT**/", outputClause);
+
+					var result = await connection.ExecuteAsync(
+						query,
+						param: parameters,
+						commandTimeout: commandTimeout,
+						transaction: transaction
+					);
+
+					if (mapGeneratedValues)
+					{
+						var outputs = await connection.SelectEntitiesFromOutputTarget<T>(
+							outputSource,
+							parameters,
+							transaction,
+							commandTimeout
 						);
 
-						if (mapGeneratedValues && resultCount > 0)
-						{
-							var result = await connection.SelectEntitiesFromSource<T>(outputSource, parameters, transaction, commandTimeout);
-							outputMap(
-								entitiesToInsert,
-								result,
-								typeMeta.PropertiesExceptKeyAndComputed,
-								typeMeta.Properties
-							);
-						}
+						outputMap(
+							entitiesToInsert,
+							outputs,
+							typeMeta.PropertiesExceptKeyAndComputed,
+							typeMeta.Properties
+						);
+					}
 
-						return resultCount;
-					},
-					transaction: transaction,
-					sqlBulkCopy: sqlBulkCopy
-				);
-
-			return result;
+					return result;
+				},
+				transaction: transaction,
+				sqlBulkCopy: sqlBulkCopy
+			);
 		}
 
 		/// <summary>
@@ -315,48 +338,50 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0)
 				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-			var outputValues = new List<T>();
-			var result =
-				await connection.ExecuteAsync(
-					entitiesToUpdate,
-					typeMeta.PropertiesExceptComputed,
-					async (connection, transaction, source, parameters, properties) =>
-					{
-						var query = $@"
-							UPDATE Target
-							SET
-								{typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ")}
-							FROM
-								{source} AS Source
-								INNER JOIN {typeMeta.TableName} AS Target
-									ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
-						";
+			return await connection.ExecuteAsync(
+				entitiesToUpdate,
+				typeMeta.PropertiesExceptComputed,
+				async (connection, source, parameters, properties) =>
+				{
+					var query = $@"
+						UPDATE Target
+						SET
+							{typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ")}
+						FROM
+							{source} AS Source
+							INNER JOIN {typeMeta.TableName} AS Target
+								ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
+					";
 
-						var resultCount = await connection.ExecuteAsync(
-							query,
-							param: parameters,
-							commandTimeout: commandTimeout,
-							transaction: transaction
+					var result = await connection.ExecuteAsync(
+						query,
+						param: parameters,
+						commandTimeout: commandTimeout,
+						transaction: transaction
+					);
+
+					if (mapGeneratedValues)
+					{
+						var output = await connection.SelectEntitiesFromOutputTarget<T>(
+							source,
+							parameters,
+							transaction,
+							commandTimeout
 						);
 
-						if (mapGeneratedValues && resultCount > 0)
-						{
-							var result = await connection.SelectEntitiesFromSource<T>(source, parameters, transaction, commandTimeout);
-							outputMap(
-								entitiesToUpdate,
-								result,
-								typeMeta.PropertiesKeyAndExplicit,
-								typeMeta.Properties
-							);
-						}
+						outputMap(
+							entitiesToUpdate,
+							output,
+							typeMeta.PropertiesKeyAndExplicit,
+							typeMeta.Properties
+						);
+					}
 
-						return resultCount;
-					},
-					transaction: transaction,
-					sqlBulkCopy: sqlBulkCopy
-				);
-
-			return result;
+					return result;
+				},
+				transaction: transaction,
+				sqlBulkCopy: sqlBulkCopy
+			);
 		}
 
 		/// <summary>
@@ -390,7 +415,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			var result = await connection.ExecuteAsync(
 				entitiesToDelete,
 				typeMeta.PropertiesKeyAndExplicit,
-				async (connection, transaction, source, parameters, properties) =>
+				async (connection, source, parameters, properties) =>
 				{
 					var query = $@"
 						DELETE Target
@@ -400,7 +425,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 								ON {properties.ColumnListEquals(" AND ")};
 					";
 
-					return await connection.ExecuteAsync(query, param: parameters, commandTimeout: commandTimeout, transaction: transaction);
+					return await connection.ExecuteAsync(
+						query,
+						param: parameters,
+						commandTimeout: commandTimeout,
+						transaction: transaction
+					);
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -421,7 +451,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return clause;
 		}
 
-		private static async Task<IEnumerable<T>> SelectEntitiesFromSource<T>(
+		private async static Task<IEnumerable<T>> SelectEntitiesFromOutputTarget<T>(
 			this IDbConnection connection,
 			string source,
 			DynamicParameters parameters,
@@ -435,7 +465,11 @@ namespace Simpleverse.Repository.Db.SqlServer
 			var query = $@"
 				SELECT Target.*
 				FROM
-					{source} AS Source
+					(
+						SELECT {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "SourceSource")}
+						FROM {source} AS SourceSource
+						GROUP BY {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "SourceSource")}
+					)  AS Source
 					INNER JOIN {typeMeta.TableName} AS Target
 						ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
 			";
@@ -443,22 +477,21 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return await connection.QueryAsync<T>(
 				query,
 				param: parameters,
-				commandTimeout: commandTimeout,
-				transaction: transaction
+				transaction: transaction,
+				commandTimeout: commandTimeout
 			);
 		}
 
-		private static string CreateTemporaryTableFromTable(IDbConnection connection, string tableName, IEnumerable<PropertyInfo> columns, IDbTransaction transaction)
+		private async static Task<string> CreateTemporaryTableFromTable(IDbConnection connection, string tableName, IEnumerable<PropertyInfo> columns, IDbTransaction transaction)
 		{
 			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
 
-			connection.Execute(
+			await connection.ExecuteAsync(
 				$@"SELECT TOP 0 {columns.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
 				UNION ALL
 				SELECT TOP 0 {columns.ColumnList()} FROM {tableName} WITH(NOLOCK);
 				"
-				, null
-				, transaction
+				, transaction: transaction
 			);
 			return insertedTableName;
 		}
@@ -514,48 +547,47 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return (insertedTableName, null);
 		}
 
-		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int size)
-		{
-			var batch = new List<T>();
-			var index = 0;
-			foreach (var item in items)
-			{
-				batch.Add(item);
-				index++;
+		//public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int size)
+		//{
+		//	var batch = new List<T>();
+		//	var index = 0;
+		//	foreach (var item in items)
+		//	{
+		//		batch.Add(item);
+		//		index++;
 
-				if (index % size == 0)
-				{
-					yield return batch;
-					batch = new List<T>();
-				}
-			}
+		//		if (index % size == 0)
+		//		{
+		//			yield return batch;
+		//			batch = new List<T>();
+		//		}
+		//	}
 
-			if (batch.Count > 0)
-				yield return batch;
-		}
+		//	if (batch.Count > 0)
+		//		yield return batch;
+		//}
 
 		public static async Task<R> ExecuteAsync<T, R>(
 			this IDbConnection connection,
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
-			Func<IDbConnection, IDbTransaction, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
+			Func<IDbConnection, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
 			IDbTransaction transaction = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null
 		)
 		{
-			return await connection.ExecuteAsyncWithTransaction(
-				async (conn, tran) =>
+			return await connection.ExecuteAsync(
+				async (conn) =>
 				{
 					var (source, parameters) = await connection.BulkSourceAsync(
 						entities,
 						properties,
-						transaction: tran,
+						transaction: transaction,
 						sqlBulkCopy: sqlBulkCopy
 					);
 
-					return await executor(connection, tran, source, parameters, properties);
-				},
-				transaction: transaction
+					return await executor(connection, source, parameters, properties);
+				}
 			);
 		}
 	}

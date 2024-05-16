@@ -17,7 +17,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public EntityProjectedTest(DatabaseFixture fixture, ITestOutputHelper output)
 			: base(fixture, output)
 		{
-			_sqlRepository = new SqlRepository(() => (ProfiledDbConnection)fixture.GetConnection());
+			_sqlRepository = new SqlRepository(() => (ProfiledDbConnection)fixture.GetProfiledConnection());
 		}
 
 		[Fact]
