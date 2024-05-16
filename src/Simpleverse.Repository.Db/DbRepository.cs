@@ -45,49 +45,49 @@ namespace Simpleverse.Repository.Db
 
 		public virtual async Task<IEnumerable<R>> QueryAsync<R>(string rawSql, object parameters)
 		{
-			return await ExecuteAsync((conn, tran) => conn.QueryAsync<R>(rawSql, param: parameters, transaction: tran));
+			return await ExecuteAsync((conn) => conn.QueryAsync<R>(rawSql, param: parameters));
 		}
 
 		public virtual async Task<IEnumerable<dynamic>> QueryAsync(string rawSql, object parameters)
 		{
-			return await ExecuteAsync((conn, tran) => conn.QueryAsync(rawSql, param: parameters, transaction: tran));
+			return await ExecuteAsync((conn) => conn.QueryAsync(rawSql, param: parameters));
 		}
 
 		public Task<IEnumerable<(TFirst, TSecond)>> QueryAsync<TFirst, TSecond>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond>(rawSql, param: parameters));
 
 		public Task<IEnumerable<(TFirst, TSecond, TThird)>> QueryAsync<TFirst, TSecond, TThird>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird>(rawSql, param: parameters));
 
 		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth)>> QueryAsync<TFirst, TSecond, TThird, TFourth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth>(rawSql, param: parameters));
 
 		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(rawSql, param: parameters));
 
 		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(rawSql, param: parameters));
 
 		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn, tran) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(rawSql, param: parameters, tran: tran));
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(rawSql, param: parameters));
 
 
 		public Task<int> ExecuteAsync(SqlBuilder.Template query)
-			=> ExecuteAsync((conn, tran) => conn.ExecuteAsync(query, tran: tran));
+			=> ExecuteAsync((conn) => conn.ExecuteAsync(query));
 
-		public async Task<R> ExecuteAsync<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
+		public async Task<R> ExecuteAsync<R>(Func<IDbConnection, Task<R>> function)
 		{
 			using (var conn = Connection)
 			{
 				conn.Open();
-				return await function(conn, null);
+				return await function(conn);
 			}
 		}
 
 		public Task<R> ExecuteAsyncWithTransaction<R>(Func<IDbConnection, IDbTransaction, Task<R>> function)
 		{
 			return ExecuteAsync(
-				(conn, _) => conn.ExecuteAsyncWithTransaction(function)
+				(conn) => conn.ExecuteAsyncWithTransaction(function)
 			);
 		}
 
