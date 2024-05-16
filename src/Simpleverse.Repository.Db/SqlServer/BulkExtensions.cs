@@ -55,19 +55,10 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (!columnsToCopy.Any())
 				return string.Empty;
 
-			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
-
 			if (connection.State != ConnectionState.Open)
 				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
-			connection.Execute(
-				$@"SELECT TOP 0 {columnsToCopy.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
-				UNION ALL
-				SELECT TOP 0 {columnsToCopy.ColumnList()} FROM {tableName} WITH(NOLOCK);
-				"
-				, null
-				, transaction
-			);
+			var insertedTableName = CreateTemporaryTableFromTable(connection, tableName, columnsToCopy, transaction);
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000 || !(connection is SqlConnection))
 			{
@@ -234,10 +225,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (entityCount == 0)
 				return 0;
 
-			var mapGeneratedValues = outputMap != null;
 			var typeMeta = TypeMeta.Get<T>();
 
-			var outputEntities = new List<T>();
+			var mapGeneratedValues = outputMap != null;
+			if (mapGeneratedValues && !typeMeta.PropertiesKeyAndExplicit.Any())
+				throw new NotSupportedException("Output mapping inserted values is not supported without either a key or explicitkey");
+
 			var result =
 				await connection.ExecuteAsync(
 					entitiesToInsert,
@@ -247,43 +240,47 @@ namespace Simpleverse.Repository.Db.SqlServer
 						var columnList = properties.ColumnList();
 
 						var query = $@"
-							INSERT INTO {typeMeta.TableName} ({columnList}) 
-							{(mapGeneratedValues ? OutputClause() : string.Empty)}
+							INSERT INTO {typeMeta.TableName} ({columnList})
+							/**OUTPUT**/
 							SELECT {columnList} FROM {source} AS Source;
 						";
 
-						if (mapGeneratedValues)
+						var outputClause = string.Empty;
+						var outputSource = source;
+						if (mapGeneratedValues && typeMeta.PropertiesKey.Any())
 						{
-							var results = await connection.QueryAsync<T>(
-								query,
-								param: parameters,
-								commandTimeout: commandTimeout,
-								transaction: transaction
+							outputSource = CreateTemporaryTableFromTable(
+							   connection,
+							   typeMeta.TableName,
+							   typeMeta.PropertiesKeyAndExplicit,
+							   transaction
 							);
-							outputEntities.AddRange(results);
-							return results.Count();
+
+							outputClause = OutputClause(outputSource, typeMeta.PropertiesKeyAndExplicit);
 						}
-						else
+
+						var resultCount = await connection.ExecuteAsync(
+							query.Replace("/**OUTPUT**/", outputClause),
+							param: parameters,
+							commandTimeout: commandTimeout,
+							transaction: transaction
+						);
+
+						if (mapGeneratedValues && resultCount > 0)
 						{
-							return await connection.ExecuteAsync(
-								query,
-								param: parameters,
-								commandTimeout: commandTimeout,
-								transaction: transaction
+							var result = await connection.SelectEntitiesFromSource<T>(outputSource, parameters, transaction, commandTimeout);
+							outputMap(
+								entitiesToInsert,
+								result,
+								typeMeta.PropertiesExceptKeyAndComputed,
+								typeMeta.Properties
 							);
 						}
+
+						return resultCount;
 					},
 					transaction: transaction,
 					sqlBulkCopy: sqlBulkCopy
-				)
-			;
-
-			if (mapGeneratedValues)
-				outputMap(
-					entitiesToInsert,
-					outputEntities,
-					typeMeta.PropertiesExceptKeyAndComputed,
-					typeMeta.PropertiesKeyAndComputed
 				);
 
 			return result;
@@ -329,46 +326,34 @@ namespace Simpleverse.Repository.Db.SqlServer
 							UPDATE Target
 							SET
 								{typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ")}
-							{(mapGeneratedValues ? OutputClause() : string.Empty)}
 							FROM
 								{source} AS Source
 								INNER JOIN {typeMeta.TableName} AS Target
 									ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
 						";
 
-						if (mapGeneratedValues)
-						{
-							var results = await connection.QueryAsync<T>(
-								query,
-								param: parameters,
-								commandTimeout: commandTimeout,
-								transaction: transaction
-							);
+						var resultCount = await connection.ExecuteAsync(
+							query,
+							param: parameters,
+							commandTimeout: commandTimeout,
+							transaction: transaction
+						);
 
-							outputValues.AddRange(results);
-							return results.Count();
-						}
-						else
+						if (mapGeneratedValues && resultCount > 0)
 						{
-							return await connection.ExecuteAsync(
-								query,
-								param: parameters,
-								commandTimeout: commandTimeout,
-								transaction: transaction
+							var result = await connection.SelectEntitiesFromSource<T>(source, parameters, transaction, commandTimeout);
+							outputMap(
+								entitiesToUpdate,
+								result,
+								typeMeta.PropertiesKeyAndExplicit,
+								typeMeta.Properties
 							);
 						}
+
+						return resultCount;
 					},
 					transaction: transaction,
 					sqlBulkCopy: sqlBulkCopy
-				)
-			;
-
-			if (mapGeneratedValues)
-				outputMap(
-					entitiesToUpdate,
-					outputValues,
-					typeMeta.PropertiesKeyAndExplicit,
-					typeMeta.PropertiesComputed
 				);
 
 			return result;
@@ -423,13 +408,59 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return result;
 		}
 
-		private static string OutputClause(IEnumerable<PropertyInfo> properties = null)
+		private static string OutputClause(string targetTable = null, IEnumerable<PropertyInfo> properties = null)
 		{
-			var keyColumns = properties?.ColumnList(prefix: "inserted");
-			if (string.IsNullOrWhiteSpace(keyColumns))
-				return "OUTPUT inserted.*";
+			var columns = properties?.ColumnList(prefix: "inserted");
+			if (string.IsNullOrWhiteSpace(columns))
+				columns = "inserted.*";
 
-			return "OUTPUT " + keyColumns;
+			var clause = "OUTPUT " + columns;
+			if (!string.IsNullOrWhiteSpace(targetTable))
+				clause += $" INTO {targetTable}";
+
+			return clause;
+		}
+
+		private static async Task<IEnumerable<T>> SelectEntitiesFromSource<T>(
+			this IDbConnection connection,
+			string source,
+			DynamicParameters parameters,
+			IDbTransaction transaction,
+			int? commandTimeout
+		)
+			where T : class
+		{
+			var typeMeta = TypeMeta.Get<T>();
+
+			var query = $@"
+				SELECT Target.*
+				FROM
+					{source} AS Source
+					INNER JOIN {typeMeta.TableName} AS Target
+						ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
+			";
+
+			return await connection.QueryAsync<T>(
+				query,
+				param: parameters,
+				commandTimeout: commandTimeout,
+				transaction: transaction
+			);
+		}
+
+		private static string CreateTemporaryTableFromTable(IDbConnection connection, string tableName, IEnumerable<PropertyInfo> columns, IDbTransaction transaction)
+		{
+			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+
+			connection.Execute(
+				$@"SELECT TOP 0 {columns.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
+				UNION ALL
+				SELECT TOP 0 {columns.ColumnList()} FROM {tableName} WITH(NOLOCK);
+				"
+				, null
+				, transaction
+			);
+			return insertedTableName;
 		}
 
 		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
