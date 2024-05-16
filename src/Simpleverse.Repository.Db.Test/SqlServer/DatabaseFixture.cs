@@ -1,9 +1,9 @@
-﻿using System;
-using System.Data.Common;
-using Dapper;
+﻿using Dapper;
 using Microsoft.Data.SqlClient;
 using StackExchange.Profiling;
 using StackExchange.Profiling.Data;
+using System;
+using System.Data.Common;
 
 namespace Simpleverse.Repository.Db.Test.SqlServer
 {
@@ -37,7 +37,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					CREATE TABLE [Identity]
 					(
 						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-						[Name] NVARCHAR(MAX) NULL
+						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL
 					);");
 
 				connection.Execute(
@@ -54,6 +55,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 						[Id] INT IDENTITY(1,1) NOT NULL,
 						[ExplicitKeyId] UNIQUEIDENTIFIER NOT NULL,
 						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
 						CONSTRAINT [PK_IdentityAndExplict] PRIMARY KEY ([Id], [ExplicitKeyId]),
 					);");
 
@@ -63,6 +65,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					(
 						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
 						[Value] INT NULL DEFAULT 5,
 						[ValueDate] DATETIME NULL DEFAULT '2022-05-02',
 						[ValueComputed] AS [Value] * 2
@@ -74,6 +77,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					(
 						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
 						[Ignored] INT NULL,
 						[NotIgnored] INT NULL
 					);");
@@ -84,6 +88,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					(
 						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
 						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
 						[Enum] INT NULL,
 						[Guid] UNIQUEIDENTIFIER NULL,
 						[DateTime] DATETIME NULL

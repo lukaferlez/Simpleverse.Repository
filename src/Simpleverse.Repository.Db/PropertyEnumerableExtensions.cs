@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Reflection;
-using Dapper;
-using System.Text;
+﻿using Dapper;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Text;
 
 namespace Simpleverse.Repository.Db
 {
@@ -13,7 +13,7 @@ namespace Simpleverse.Repository.Db
 			if (!string.IsNullOrEmpty(prefix))
 				prefix = prefix + ".";
 
-			return string.Join(", ", columnNames.Select(x => prefix + x + suffix));
+			return string.Join(", ", columnNames.Select(x => prefix + $"[{x + suffix}]"));
 		}
 
 		public static string ColumnList(this IEnumerable<PropertyInfo> properties, string prefix = null, string suffix = null)
@@ -29,7 +29,7 @@ namespace Simpleverse.Repository.Db
 			if (!string.IsNullOrEmpty(rightPrefix))
 				rightPrefix = rightPrefix + ".";
 
-			return string.Join(separator, columNames.Select(x => $"{leftPrefix}{x} = {rightPrefix}{x}"));
+			return string.Join(separator, columNames.Select(x => $"{leftPrefix}[{x}] = {rightPrefix}[{x}]"));
 		}
 
 		public static string ColumnListEquals(this IEnumerable<PropertyInfo> properties, string separator, string leftPrefix = "Target", string rightPrefix = "Source")
@@ -68,7 +68,7 @@ namespace Simpleverse.Repository.Db
 			return string.Join(
 				separator,
 				columNames.Select(x =>
-					$"NULLIF({leftPrefix}{x}, {rightPrefix}{x}) IS NOT NULL OR NULLIF({rightPrefix}{x}, {leftPrefix}{x}) IS NOT NULL"
+					$"NULLIF({leftPrefix}[{x}], {rightPrefix}[{x}]) IS NOT NULL OR NULLIF({rightPrefix}[{x}], {leftPrefix}[{x}]) IS NOT NULL"
 				)
 			);
 		}

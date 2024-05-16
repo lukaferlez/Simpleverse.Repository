@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace Simpleverse.Repository.Db.Test
 {
-    public class DapperHelper
+	public class DapperHelper
 	{
 		private readonly Mock<DbConnection> _mockConnection;
 

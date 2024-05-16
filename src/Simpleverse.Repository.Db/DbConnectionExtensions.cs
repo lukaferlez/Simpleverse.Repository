@@ -66,20 +66,21 @@ namespace Simpleverse.Repository.Db
 			try
 			{
 				var result = await function(conn, transaction);
-				if (transactionWasClosed)
+				// Transaction even after calling BeginTransaction if a mocked DbConnection is used
+				if (transactionWasClosed && transaction != null)
 					transaction.Commit();
 
 				return result;
 			}
 			catch
 			{
-				if (transactionWasClosed)
+				if (transactionWasClosed && transaction != null)
 					transaction.Rollback();
 				throw;
 			}
 			finally
 			{
-				if (transactionWasClosed)
+				if (transactionWasClosed && transaction != null)
 					transaction.Dispose();
 
 				if (connectonWasClosed)
