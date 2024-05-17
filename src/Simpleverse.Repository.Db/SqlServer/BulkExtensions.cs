@@ -249,7 +249,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return await connection.ExecuteAsync(
 				entitiesToInsert,
 				typeMeta.PropertiesExceptKeyAndComputed,
-				async (connection, source, parameters, properties) =>
+				async (conn, source, parameters, properties) =>
 				{
 					var columnList = properties.ColumnList();
 					var query = $@"
@@ -265,7 +265,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 						if (typeMeta.PropertiesKey.Any())
 						{
 							var outputTarget = await CreateTemporaryTableFromTable(
-								connection,
+								conn,
 								typeMeta.TableName,
 								typeMeta.PropertiesKeyAndExplicit,
 								transaction
@@ -277,37 +277,30 @@ namespace Simpleverse.Repository.Db.SqlServer
 					}
 
 					query = query.Replace("/**OUTPUT**/", outputClause);
-
-					var result = await connection.ExecuteAsync(
+					return await conn.ExecuteWithOutputMapAsync<T>(
 						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: transaction
+						parameters,
+						outputSource,
+						mapGeneratedValues,
+						(output) =>
+						{
+							outputMap(
+								entitiesToInsert,
+								output,
+								typeMeta.PropertiesExceptKeyAndComputed,
+								typeMeta.Properties
+							);
+						},
+						transaction,
+						commandTimeout
 					);
-
-					if (mapGeneratedValues)
-					{
-						var outputs = await connection.SelectEntitiesFromOutputTarget<T>(
-							outputSource,
-							parameters,
-							transaction,
-							commandTimeout
-						);
-
-						outputMap(
-							entitiesToInsert,
-							outputs,
-							typeMeta.PropertiesExceptKeyAndComputed,
-							typeMeta.Properties
-						);
-					}
-
-					return result;
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
 			);
 		}
+
+
 
 		/// <summary>
 		/// Updates entity in table "Ts", checks if the entity is modified if the entity is tracked by the Get() extension.
@@ -341,7 +334,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return await connection.ExecuteAsync(
 				entitiesToUpdate,
 				typeMeta.PropertiesExceptComputed,
-				async (connection, source, parameters, properties) =>
+				async (conn, source, parameters, properties) =>
 				{
 					var query = $@"
 						UPDATE Target
@@ -353,31 +346,23 @@ namespace Simpleverse.Repository.Db.SqlServer
 								ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
 					";
 
-					var result = await connection.ExecuteAsync(
+					return await conn.ExecuteWithOutputMapAsync<T>(
 						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: transaction
+						parameters,
+						source,
+						mapGeneratedValues,
+						(output) =>
+						{
+							outputMap(
+								entitiesToUpdate,
+								output,
+								typeMeta.PropertiesKeyAndExplicit,
+								typeMeta.Properties
+							);
+						},
+						transaction,
+						commandTimeout
 					);
-
-					if (mapGeneratedValues)
-					{
-						var output = await connection.SelectEntitiesFromOutputTarget<T>(
-							source,
-							parameters,
-							transaction,
-							commandTimeout
-						);
-
-						outputMap(
-							entitiesToUpdate,
-							output,
-							typeMeta.PropertiesKeyAndExplicit,
-							typeMeta.Properties
-						);
-					}
-
-					return result;
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
@@ -451,34 +436,57 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return clause;
 		}
 
-		private async static Task<IEnumerable<T>> SelectEntitiesFromOutputTarget<T>(
+		private static async Task<int> ExecuteWithOutputMapAsync<T>(
 			this IDbConnection connection,
-			string source,
+			string query,
 			DynamicParameters parameters,
-			IDbTransaction transaction,
-			int? commandTimeout
+			string outputSource,
+			bool mapGeneratedValues,
+			Action<IEnumerable<T>> map,
+			IDbTransaction transaction = null,
+			int? commandTimeout = null
 		)
 			where T : class
 		{
-			var typeMeta = TypeMeta.Get<T>();
+			return await connection.ExecuteAsyncWithTransaction(
+				async (conn, tran) =>
+				{
+					var result = await conn.ExecuteAsync(
+						query,
+						param: parameters,
+						commandTimeout: commandTimeout,
+						transaction: tran
+					);
 
-			var query = $@"
-				SELECT Target.*
-				FROM
-					(
-						SELECT {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "SourceSource")}
-						FROM {source} AS SourceSource
-						GROUP BY {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "SourceSource")}
-					)  AS Source
-					INNER JOIN {typeMeta.TableName} AS Target
-						ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
-			";
+					if (mapGeneratedValues)
+					{
+						var typeMeta = TypeMeta.Get<T>();
 
-			return await connection.QueryAsync<T>(
-				query,
-				param: parameters,
-				transaction: transaction,
-				commandTimeout: commandTimeout
+						var query = $@"
+							SELECT Target.*
+							FROM
+								(
+									SELECT {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "OutputSource")}
+									FROM {outputSource} AS OutputSource
+									GROUP BY {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "OutputSource")}
+								)  AS Source
+								INNER JOIN {typeMeta.TableName} AS Target WITH(NOLOCK)
+									ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
+						";
+
+						var outputs = await conn.QueryAsync<T>(
+							query,
+							param: parameters,
+							transaction: tran,
+							commandTimeout: commandTimeout
+						);
+
+						map(outputs);
+					}
+
+					return result;
+				},
+				transaction: transaction
 			);
 		}
 
