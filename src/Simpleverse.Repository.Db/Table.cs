@@ -57,6 +57,22 @@ namespace Simpleverse.Repository.Db
 				}
 			);
 
+		public Template SelectAsJson(Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
+			=> SelectAsJson(this, builder, options);
+
+		public Template SelectAsJson(string alias, Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
+			=> SelectAsJson(new Table<T>(alias), builder, options);
+
+		public Template SelectAsJson(Table<T> source, Action<QueryBuilder<T>> builder = null, DbQueryOptions options = null)
+			=> Query(
+				source,
+				templateBuilder =>
+				{
+					builder?.Invoke(templateBuilder);
+					return templateBuilder.SelectTemplateAsJson(source, options ?? new DbQueryOptions());
+				}
+			);
+
 		#endregion
 
 		#region Update

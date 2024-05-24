@@ -14,20 +14,40 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 			=> sqlBuilder.SelectTemplate(source.ToString(), options);
 
 		public static SqlBuilder.Template SelectTemplate(this SqlBuilder sqlBuilder, string tableReference, DbQueryOptions options)
-		{
-			return sqlBuilder.AddTemplate($@"
-					SELECT {options.TopCondition} /**select**/
-					FROM {tableReference}
-						{options.LockCondition}
-						/**join**/
-						/**innerjoin**/
-						/**leftjoin**/
-						/**rightjoin**/
-					/**where**/
-					/**groupby**/
-					/**orderby**/
+			=> sqlBuilder.AddTemplate(SelectTemplate(tableReference, options));
+
+		#endregion
+
+		#region SelectAsJson
+
+		public static SqlBuilder.Template SelectTemplateAsJson<T>(this SqlBuilder sqlBuilder, DbQueryOptions options, string tableAlias = null)
+			=> sqlBuilder.SelectTemplateAsJson(DbRepository.TableReference(TypeMeta.Get<T>().TableName, tableAlias), options);
+
+		public static SqlBuilder.Template SelectTemplateAsJson<T>(this SqlBuilder sqlBuilder, Table<T> source, DbQueryOptions options)
+			=> sqlBuilder.SelectTemplateAsJson(source.ToString(), options);
+
+		public static SqlBuilder.Template SelectTemplateAsJson(this SqlBuilder sqlBuilder, string tableReference, DbQueryOptions options)
+			=> sqlBuilder.AddTemplate(
+				$@"
+				{SelectTemplate(tableReference, options)}
+				FOR JSON PATH
 				"
 			);
+
+		private static string SelectTemplate(string tableReference, DbQueryOptions options)
+		{
+			return $@"
+				SELECT {options.TopCondition} /**select**/
+				FROM {tableReference}
+					{options.LockCondition}
+					/**join**/
+					/**innerjoin**/
+					/**leftjoin**/
+					/**rightjoin**/
+				/**where**/
+				/**groupby**/
+				/**orderby**/
+			";
 		}
 
 		#endregion

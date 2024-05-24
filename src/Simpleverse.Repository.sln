@@ -9,7 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository.Db.T
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository", "Simpleverse.Repository\Simpleverse.Repository.csproj", "{D2C4FBFC-2CEF-409C-B8A1-952F234E876C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Simpleverse.Repository.Test", "Simpleverse.Repository.Test\Simpleverse.Repository.Test.csproj", "{7D6B2704-672F-4264-9386-88894452F7FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Simpleverse.Repository.Test", "Simpleverse.Repository.Test\Simpleverse.Repository.Test.csproj", "{7D6B2704-672F-4264-9386-88894452F7FA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{44F77541-A14C-4565-9356-395A909C06A5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "webapi", "..\docs\examples\webapi\webapi.csproj", "{DD0A887F-CA9F-429D-81CF-D06976890079}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,9 +37,16 @@ Global
 		{7D6B2704-672F-4264-9386-88894452F7FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D6B2704-672F-4264-9386-88894452F7FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D6B2704-672F-4264-9386-88894452F7FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD0A887F-CA9F-429D-81CF-D06976890079}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD0A887F-CA9F-429D-81CF-D06976890079}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD0A887F-CA9F-429D-81CF-D06976890079}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD0A887F-CA9F-429D-81CF-D06976890079}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DD0A887F-CA9F-429D-81CF-D06976890079} = {44F77541-A14C-4565-9356-395A909C06A5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8CAB20C0-6F8B-4D68-A902-2702A44E722F}

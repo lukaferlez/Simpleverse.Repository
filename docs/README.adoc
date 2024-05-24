@@ -1,0 +1,493 @@
+= Simpleverse.Repository
+
+== Entities
+Example of basic usage of entities.
+
+Based on the database table "Model" defined as:
+[source, tsql]
+.Example table
+----
+CREATE TABLE dbo.Basic
+(
+	[Id] INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	[Name] VARCHAR(255),
+	[Description] VARCHAR(255),
+	[Created] DateTime DEFAULT(GETDATE())
+)
+----
+
+We create a model representation in application code.
+
+WARNING: Note that the properties are virtual, they are required to be so in order to enable tracking changes.
+[source, csharp]
+.Example model
+----
+[Table("dbo.[Basic]")]
+public class BasicModel
+{
+	public virtual int Id { get; set; }
+	public virtual string Name { get; set; }
+	public virtual string Description { get; set; }
+	public virtual DateTime Created { get; set; }
+}
+----
+
+By using the above model through the Entity class we can run CRUD operations on the underlying database table. The Entity class exposes various operations for fetching, creating, updating, deleting the database records either item by item, using various filters or in bulk.
+
+[source, csharp]
+.Example controller
+----
+public class BasicController : Controller
+{
+	private readonly IEntity<BasicModel> _basicEntity;
+
+	public BasicController(IEntity<BasicModel> modelEntity)
+	{
+		_basicEntity = modelEntity;
+	}
+
+	public async Task<ActionResult<BasicModel>> GetAsync(int id)
+	{
+		var model = await _basicEntity.GetAsync(filter => filter.Id = id);
+		if (model == null)
+			return NotFound();
+
+		return Ok(model);
+	}
+
+	public async Task<ActionResult<IEnumerable<BasicModel>>> GetAsync(string name)
+	{
+		var models = await _basicEntity.ListAsync(filter => filter.Name = name);
+		return Ok(models);
+	}
+
+	public async Task<ActionResult<BasicModel>> PostAsync([FromBody] BasicModel model)
+	{
+		var count = await _basicEntity.AddAsync(model);
+
+		return Ok(model);
+	}
+
+	public async Task<ActionResult<IEnumerable<BasicModel>>> PostAsync([FromBody] IEnumerable<BasicModel> models)
+	{
+		var count = await _basicEntity.AddAsync(models);
+
+		return Ok(models);
+	}
+
+	public async Task<ActionResult> PutAsync(BasicModel model)
+	{
+		var count = await _basicEntity.UpdateAsync(model);
+
+		return Ok();
+	}
+
+	public async Task<ActionResult> UpdateOnlySomeAsync(BasicModel model)
+	{
+		var count = await _basicEntity.UpdateAsync(
+			update =>
+			{
+				update.Name = model.Name;
+				update.Description = model.Description;
+			},
+			filter => filter.Id = model.Id
+		);
+
+		return Ok();
+	}
+
+	public async Task<ActionResult> DeleteAsync(int id)
+	{
+		var count = await _basicEntity.DeleteAsync(filter => filter.Id = id);
+		return Ok();
+	}
+}
+----
+
+== Projections
+Model projections can be used to create C#/JSON friendly models or specific view models while using the projection as a drop in replacement for the simple database entity.
+
+
+=== Simple projection
+Take as a starting point the previous example of the BasicModel and it's controller, imagine that the "Description" field contains tags in a comma delimited string, and that our "Name" field is unique. Given that we want to
+* "hide" our database Id from the public, ie. don't want to transmit it to clients 
+* manipulate the tags values through a List in C#
+* output them as an array in JSON
+
+In order to do so we need to create a projection form our database model and work with it transparently in the api code.
+
+We first introduce a projection type, you can think of it as a view model, where we will split the description string into a list of tags and "hide" the Id property from the JSON serialization.
+
+.Example projection
+----
+public class Basic : IProject<BasicModel>
+{
+	[JsonIgnore]
+	public BasicModel Model { get; set; }
+
+	internal virtual int Id
+	{
+		get => Model.Id;
+		set => Model.Id = value;
+	}
+	public virtual string Name
+	{
+		get => Model.Name;
+		set => Model.Name = value;
+	}
+	public virtual List<string> Tags
+	{
+		get
+		{
+			return Model.Description.Split(",");
+		}
+		set
+		{
+			Model.Description = string.Join(",", value);
+		}
+	}
+	public virtual DateTime Created
+	{
+		get => Model.Created;
+		set => Model.Created = value;
+	}
+
+	public Basic()
+		: this(new BasicModel())
+	{
+
+	}
+
+	public Basic(BasicModel model)
+	{
+		Model = model;
+	}
+}
+----
+NOTE: The Id property is marked as internal and thus will not be serialized by default.
+
+WARNING: The constructors are mandatory, both the parameters less and the one taking in the database model.
+
+Next we replace the IEntity with IProjectedEntity in the controller as a drop in replacement and switch queries to use Name instead of Id. Following this our code will work with a projection not the actual underlying database model.
+[source, csharp]
+.Example controller
+----
+public class BasicController : Controller
+{
+	private readonly IProjectedEntity<Basic, BasicModel> _basicEntity;
+
+	public BasicController(IProjectedEntity<Basic, BasicModel> modelEntity)
+	{
+		_basicEntity = modelEntity;
+	}
+
+	[HttpGet()]
+	public async Task<ActionResult<IEnumerable<Basic>>> GetAsync()
+	{
+		var models = await _basicEntity.ListAsync();
+		return Ok(models);
+	}
+
+	[HttpGet("{name}")]
+	public async Task<ActionResult<Basic>> GetAsync(string name)
+	{
+		var model = await _basicEntity.GetAsync(filter => filter.Name = name);
+		if (model == null)
+			return NotFound();
+
+		return Ok(model);
+	}
+
+	[HttpPost]
+	public async Task<ActionResult<Basic>> PostAsync([FromBody] Basic model)
+	{
+		var count = await _basicEntity.AddAsync(model);
+
+		return Ok(model);
+	}
+
+	[HttpPost]
+	public async Task<ActionResult<IEnumerable<Basic>>> PostAsync([FromBody] IEnumerable<Basic> models)
+	{
+		var count = await _basicEntity.AddAsync(models);
+
+		return Ok(models);
+	}
+
+	[HttpPut("{id}")]
+	public async Task<ActionResult> PutAsync(int id, [FromBody] Basic model)
+	{
+		model.Id = id;
+
+		var count = await _basicEntity.UpdateAsync(model);
+
+		return Ok();
+	}
+
+	[HttpPut("{id}")]
+	public async Task<ActionResult> UpdateOnlySomeAsync(int id, [FromBody] Basic model)
+	{
+		var count = await _basicEntity.UpdateAsync(
+			update =>
+			{
+				update.Name = model.Name;
+				update.Description = model.Model.Description;
+			},
+			filter => filter.Id = id
+		);
+
+		return Ok();
+	}
+
+	[HttpDelete("{id}")]
+	public async Task<ActionResult> DeleteAsync(int id)
+	{
+		var count = await _basicEntity.DeleteAsync(filter => filter.Id = id);
+		return Ok();
+	}
+}
+----
+
+== Multi-table queries
+Take as a starting point the previous example of the BasicModel, imagine we whish to grab additional data from a different table with in the same query and present those as a part of the model.
+
+Based on the database table Basic previously defined, let's add an additional table to our database as 1 to many relationship with dbo.Basic
+[source, tsql]
+.Example table
+----
+CREATE TABLE dbo.BasicChild
+(
+	[Id] INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+	[BasicId] INT NOT NULL,
+	[SomeStringData] VARCHAR(255),
+	[SuperAdditionalData] BIT,
+	[Created] DateTime DEFAULT(GETDATE()),
+	CONSTRAINT [FK_BasicChild_Basic] FOREIGN KEY ([BasicId]) REFERENCES dbo.[Basic]([Id]) ON DELETE CASCADE
+)
+----
+
+Create a model class for Child table
+[source, csharp]
+.Example model
+----
+[Table("dbo.[BasicChild]")]
+public class ChildModel
+{
+	public virtual int Id { get; set; }
+	public virtual int BasicId { get; set; }
+	public virtual string SomeStringData { get; set; }
+	public virtual bool SuperAdditionalData { get; set; }
+	public virtual DateTime Created { get; set; }
+}
+----
+
+[source, csharp]
+.Extract an interface from the existing model for the Parent table.
+----
+public interface IParentModel
+{
+	int Id { get; set; }
+	string Name { get; set; }
+	string Description { get; set; }
+	DateTime Created { get; set; }
+}
+----
+
+[source, csharp]
+.Modify the model for the Parent table & add the Children property
+----
+[Table("dbo.[Basic]")]
+public class ParentModel : IParentModel
+{
+	#region IParentModel
+
+	public virtual int Id { get; set; }
+	public virtual string Name { get; set; }
+	public virtual string Description { get; set; }
+	public virtual DateTime Created { get; set; }
+
+	#endregion
+
+	[Write(false)]
+	public IEnumerable<ChildModel> Children { get; set; }
+}
+----
+NOTE: Write(false) attribute is there so that we signal that this property should not be automatically translated to the database model and will be handled through custom code.
+
+TIP: Since we added an additional property to ParentModel class which does not exist in the underlying database model it's wise to extract the interface IParentModel as we will use that for filtering/updating. In most cases you will want to filter/update only on the actual database columns.
+
+Next step is to create our extensions for querying the data to extract the additional data, to do so we need to create an implementation of IEntity<BasicModel> using our new model.
+
+[source, csharp]
+.Custom entity implementation
+----
+public class ParentModelRepository : Entity<ParentModel, IParentModel, DbQueryOptions>
+{
+	private readonly IEntity<ChildModel> _childRepository;
+
+	public ParentModelRepository(DbRepository repository, IEntity<ChildModel> childRepository)
+		: base(repository, Database.Parent)
+	{
+		_childRepository = childRepository;
+	}
+
+	public override Task<int> AddAsync(
+		IDbConnection connection,
+		IEnumerable<ParentModel> models,
+		Action<IEnumerable<ParentModel>, IEnumerable<ParentModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+		IDbTransaction transaction = null
+	)
+	{
+		return connection.ExecuteAsyncWithTransaction(
+			async (conn, tran) =>
+			{
+				int count = await base.AddAsync(
+					conn,
+					models,
+					outputMap: outputMap,
+					transaction: tran
+				);
+
+				var children = models.SelectMany(
+					x =>
+					{
+						x.Children.ForEach(child => child.ParentId = x.Id);
+						return x.Children;
+					}
+				);
+
+				await _childRepository.AddAsync(
+					conn,
+					children,
+					outputMap: OutputMapper.Map,
+					transaction: tran
+				);
+
+				return count;
+			},
+			transaction: transaction
+		);
+	}
+
+	public override Task<int> UpdateAsync(
+		IDbConnection connection,
+		IEnumerable<ParentModel> models,
+		Action<IEnumerable<ParentModel>, IEnumerable<ParentModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+		IDbTransaction transaction = null
+	)
+	{
+		return connection.ExecuteAsyncWithTransaction(
+			async (conn, tran) =>
+			{
+				int count = await base.UpdateAsync(
+					conn,
+					models,
+					OutputMapper.Map,
+					transaction: tran
+				);
+
+				var children = models.SelectMany(
+					x =>
+					{
+						x.Children.ForEach(child => child.ParentId = x.Id);
+						return x.Children;
+					}
+				);
+
+				await _childRepository.UpsertAsync(
+					conn,
+					children,
+					outputMap: OutputMapper.Map,
+					transaction: tran
+				);
+
+				return count;
+			},
+			transaction: transaction
+		);
+	}
+
+	protected override void SelectQuery(QueryBuilder<ParentModel> builder, IParentModel filter, DbQueryOptions options)
+	{
+		base.SelectQuery(builder, filter, options);
+
+		var chilQuery = Database
+			.Child
+			.SelectAsJson(
+				builder =>
+				{
+					builder.SelectAll();
+					builder.Where($"{Database.Child.Column(x => x.ParentId)} = {Source.Column(x => x.Id)}");
+				}
+			);
+
+		builder.Select(x => x.Id);
+		builder.Select($"({chilQuery.RawSql}) AS Children");
+	}
+
+	public override async Task<IEnumerable<T>> ListAsync<T>(
+		IDbConnection connection,
+		IParentModel filter,
+		DbQueryOptions options,
+		IDbTransaction transaction = null
+	)
+	{
+		var results = await base.ListAsync<(T Model, (int Id, string Json) Children)>(connection, filter, options, transaction);
+
+		return results
+			.Select(
+				x =>
+				{
+					if (x.Model is ParentModel parent)
+					{
+						parent.Children = JsonSerializer.Deserialize<IEnumerable<ChildModel>>(x.Children.Json);
+					}
+
+					return x.Model;
+				}
+			);
+	}
+}
+----
+
+There are several items to note here
+1. We override the Add & Update methods so that we can handle the persisting changes to the children property in the database.
+2. We modify the default Select query so that it includes the child rows in the result as JSON
+3. We override the ListAsync so to parse the result and map to our model
+
+=== AddAsync & UpdateAsync
+We want this operation to be atomic so we initiate a transaction if an transaction has not already be created by using ExecuteAsyncWithTransaction.
+
+WARNING: Be careful to always pass the external transaction parameter to the ExecuteAsyncWithTransaction as that will ensure that a new transaction is not opened on the same connection if the transaction already exists.
+
+ExecuteAsyncWithTransaction opens a new transaction on the connection (if not already present) and provides those in the delegate. The delegate is then responsible to execute all need commands.
+
+==== Add
+First off execute the AddAsync on the base entity so to Insert new models to the database & pick up their generated Id's. Using those Id's we will update their child objects and call AddAsync on the _childRepository to insert all of the objects at once.
+
+WARNING: Be careful to always pass the internal delegate conn, tran to the executing methods as opposed to passing connection & transaction parameters directly, as they might not be initialized yet (connection opened & transaction created).
+
+In the end we return a count of parent objects inserted.
+
+==== Update
+First off execute the UpdateAsync on the base entity so to Update the parent models & pick up their generated Id's (for newly inserted). Using those Id's we will update their child objects and call UpsertAsync on the _childRepository to insert all of the objects in one go.
+
+NOTE: We do not delete records here that were removed from the child arrays, which can be achieved if desired by using ReplaceAsync.
+
+WARNING: Be careful to always pass the internal delegate conn, tran to the executing methods as opposed to passing connection & transaction parameters directly, as they might not be initialized yet (connection opened & transaction created).
+
+In the end we return a count of parent objects updated.
+
+=== SelectQuery
+We need to modify the generic query that returns records from a single table to return a hierarchy of records consisting of a single row for each returned row from the Parent table, with child rows returned as json in an additional column on the result set.
+
+1. We start with the base.SelectQuery to generate a generic query to select rows from the Parent table.
+2. We then need to create the subquery to fetch child rows for each of the parent rows.
+3. Then add the subquery to the select selected columns
+
+WARNING: It's required to delimit different objects returned by the result sets with and "Id" column, therefore here we add the builder.Select(x => x.Id), before including the subquery in the next column.
+
+=== ListAsync
+We need to parse te result set and map it to our model. In order to do so we specify that we want the results parsed into two objects T model & tuple (int Id, string Json) Children. The Children tuple corresponds to the columns we added in the SelectQuery.
+
+Once we have those results we can the do the deserialization & mapping to our model objects.
