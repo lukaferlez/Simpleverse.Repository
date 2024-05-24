@@ -1,4 +1,11 @@
 = Simpleverse.Repository
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
 
 == Entities
 Example of basic usage of entities.
@@ -118,6 +125,7 @@ In order to do so we need to create a projection form our database model and wor
 
 We first introduce a projection type, you can think of it as a view model, where we will split the description string into a list of tags and "hide" the Id property from the JSON serialization.
 
+[source, csharp]
 .Example projection
 ----
 public class Basic : IProject<BasicModel>
