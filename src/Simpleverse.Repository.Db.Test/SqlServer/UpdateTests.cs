@@ -1,11 +1,13 @@
 ﻿using Dapper;
 using Dapper.Contrib.Extensions;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Simpleverse.Repository.Db.SqlServer;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -87,6 +89,27 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 				// assert
 				Assert(connection, records, check, records.Count() / 2, updated);
+			}
+		}
+
+		[Theory]
+		[ClassData(typeof(UpdateImmutableTestData))]
+		public async Task UpdateImmutableTest<T, TKey>(string testName, IEnumerable<T> records, Func<T, TKey> keySelector, Action<T, T> check, int expected) where T : Immutable
+		{
+			using (var profiler = Profile(testName))
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				Arange<T>(connection);
+
+				var inserted = await connection.InsertAsync(records);
+				foreach (var record in records)
+					record.ImmutableValue = 100;
+
+				// act
+				var updated = await connection.UpdateBulkAsync(records, outputMap: OutputMapper.Map);
+
+				// assert
+				Assert(connection, records, check, records.Count(), updated);
 			}
 		}
 
@@ -175,6 +198,28 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		public IEnumerable<object[]> DataSet(int count)
 		{
 			yield return InsertTestData.ComputedDuplicateTest(count);
+		}
+
+		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	}
+
+	public class UpdateImmutableTestData : IEnumerable<object[]>
+	{
+		public IEnumerator<object[]> GetEnumerator()
+		{
+			foreach (var data in DataSet(2))
+				yield return data;
+
+			foreach (var data in DataSet(10))
+				yield return data;
+
+			foreach (var data in DataSet(500))
+				yield return data;
+		}
+
+		public IEnumerable<object[]> DataSet(int count)
+		{
+			yield return InsertTestData.ImmutableTest(count);
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

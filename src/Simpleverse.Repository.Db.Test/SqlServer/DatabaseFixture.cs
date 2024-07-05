@@ -73,6 +73,16 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					);");
 
 				connection.Execute(
+					$@"{DropTable("Immutable")}
+					CREATE TABLE Immutable
+					(
+						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
+						[ImmutableValue] INT NULL
+					);");
+
+				connection.Execute(
 					$@"{DropTable("Write")}
 					CREATE TABLE Write
 					(
