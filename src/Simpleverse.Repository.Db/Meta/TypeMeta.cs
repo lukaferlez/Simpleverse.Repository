@@ -21,6 +21,7 @@ namespace Simpleverse.Repository.Db.Meta
 		public IList<PropertyInfo> PropertiesExceptKeyComputedAndExplicit { get; }
 		public IList<PropertyInfo> PropertiesKeyAndExplicit { get; }
 		public IList<PropertyInfo> PropertiesExceptComputed { get; }
+		public IList<PropertyInfo> PropertiesExceptKeyComputedAndImmutable { get; }
 		public bool IsProjection { get; }
 
 		public TypeMeta(Type type)
@@ -33,6 +34,11 @@ namespace Simpleverse.Repository.Db.Meta
 			PropertiesExplicit = SqlMapperWrapper.ExplicitKeyPropertiesCache(type);
 			PropertiesExceptComputed = Properties.Except(PropertiesComputed).ToList();
 			PropertiesExceptKeyAndComputed = Properties.Except(PropertiesKeyAndComputed).ToList();
+			PropertiesExceptKeyComputedAndImmutable = PropertiesExceptKeyAndComputed
+				.Except(
+					PropertiesExceptKeyAndComputed.Where(prop => prop.GetCustomAttribute<ImmutableAttribute>() != null)
+				)
+				.ToList();
 			PropertiesExceptKeyComputedAndExplicit = PropertiesExceptKeyAndComputed.Except(PropertiesExplicit).ToList();
 			PropertiesKeyAndExplicit = PropertiesExplicit.Union(PropertiesKey).ToList();
 			IsProjection = Array.Exists(type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IProject<>));

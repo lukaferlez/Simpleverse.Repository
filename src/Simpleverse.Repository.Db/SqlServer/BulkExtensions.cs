@@ -339,7 +339,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 					var query = $@"
 						UPDATE Target
 						SET
-							{typeMeta.PropertiesExceptKeyAndComputed.ColumnListEquals(", ")}
+							{typeMeta.PropertiesExceptKeyComputedAndImmutable.ColumnListEquals(", ")}
 						FROM
 							{source} AS Source
 							INNER JOIN {typeMeta.TableName} AS Target
