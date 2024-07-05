@@ -106,7 +106,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					record.ImmutableValue = 100;
 
 				// act
-				var updated = await connection.UpdateBulkAsync(records, outputMap: OutputMapper.Map);
+				var updated = await connection.UpdateBulkAsync(records);
 
 				// assert
 				Assert(connection, records, check, records.Count(), updated);

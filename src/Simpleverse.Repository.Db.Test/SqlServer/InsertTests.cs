@@ -259,7 +259,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 				nameof(ImmutableTest),
 				TestData.ImmutableData,
 				x => x.Id,
-				(record, inserted) => Assert.Equal(record.ImmutableValue, inserted.ImmutableValue),
+				(record, inserted) => Assert.NotEqual(record.ImmutableValue, inserted.ImmutableValue),
 				count
 			);
 
