@@ -1,4 +1,5 @@
 ﻿using Dapper.Contrib.Extensions;
+using Simpleverse.Repository.Db.Meta;
 using System;
 using System.Collections.Generic;
 
@@ -47,6 +48,17 @@ namespace Simpleverse.Repository.Db.Test
 				{
 					Id = x,
 					Name = x.ToString()
+				},
+				count
+			);
+
+		public static IEnumerable<Immutable> ImmutableData(int count) =>
+			Generate(
+				x => new Immutable()
+				{
+					Id = x,
+					Name = x.ToString(),
+					ImmutableValue = 50
 				},
 				count
 			);
@@ -148,6 +160,13 @@ namespace Simpleverse.Repository.Db.Test
 
 		[Write(true)]
 		public int? NotIgnored { get; set; }
+	}
+
+	[Table("[Immutable]")]
+	public class Immutable : Identity
+	{
+		[Immutable]
+		public int ImmutableValue { get; set; }
 	}
 
 	public enum @Enum

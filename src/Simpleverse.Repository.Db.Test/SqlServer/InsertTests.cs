@@ -254,6 +254,15 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 				count
 			);
 
+		public static object[] ImmutableTest(int count) =>
+			Generate(
+				nameof(ImmutableTest),
+				TestData.ImmutableData,
+				x => x.Id,
+				(record, inserted) => Assert.NotEqual(record.ImmutableValue, inserted.ImmutableValue),
+				count
+			);
+
 		public static object[] WriteTest(int count) =>
 			Generate(
 				nameof(WriteTest),
