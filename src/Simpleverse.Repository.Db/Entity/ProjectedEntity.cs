@@ -163,7 +163,7 @@ namespace Simpleverse.Repository.Db.Entity
 		public override sealed Task<(int Deleted, int Added)> ReplaceAsync(Action<TFilter> filterSetup, IEnumerable<TProjection> models)
 			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => ReplaceAsync(conn, tran, filterSetup, models));
 
-		public Task<(int Deleted, int Added)> ReplaceAsync(IDbConnection conn, IDbTransaction tran, Action<TFilter> filterSetup, IEnumerable<TProjection> models)
+		public virtual Task<(int Deleted, int Added)> ReplaceAsync(IDbConnection conn, IDbTransaction tran, Action<TFilter> filterSetup, IEnumerable<TProjection> models)
 			=> _entity.ReplaceAsync(conn, tran, filterSetup, models.Select(x => x.Model));
 
 		#endregion
