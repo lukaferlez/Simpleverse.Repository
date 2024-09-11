@@ -108,7 +108,8 @@ namespace Simpleverse.Repository.Db
 					{
 						foreach (var property in propertiesToMap)
 						{
-							property.SetValue(entity.Entity, property.GetValue(result));
+							if (property.CanWrite)
+								property.SetValue(entity.Entity, property.GetValue(result));
 						}
 						entity.Mapped = true;
 
