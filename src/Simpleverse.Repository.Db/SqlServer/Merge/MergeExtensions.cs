@@ -1,7 +1,5 @@
-﻿using Dapper;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Simpleverse.Repository.Db.Meta;
-using Simpleverse.Repository.Db.SqlServer;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -120,11 +118,10 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 
 			var mapGeneratedValues = outputMap != null;
 			var typeMeta = TypeMeta.Get<T>();
-			if (typeMeta.PropertiesKey.Count == 0 && typeMeta.PropertiesExplicit.Count == 0 && key == null)
-				throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
+			if (mapGeneratedValues && !typeMeta.PropertiesKeyAndExplicit.Any())
+				throw new NotSupportedException("Output mapping inserted values is not supported without either a key or explicitkey");
 
-			var outputValues = new List<T>();
-			var result = await connection.ExecuteAsync(
+			return await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
 				async (connection, source, parameters, properties) =>
@@ -139,48 +136,57 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 					MergeMatchResult.Matched.Format(typeMeta, matched, sb);
 					MergeMatchResult.NotMatchedBySource.Format(typeMeta, notMatchedBySource, sb);
 					MergeMatchResult.NotMatchedByTarget.Format(typeMeta, notMatchedByTarget, sb);
+
+					var outputSource = source;
+					var outputClause = string.Empty;
 					if (mapGeneratedValues)
-						MergeOutputFormat(sb);
+					{
+						if (typeMeta.PropertiesKey.Any())
+						{
+							var outputTarget = await connection.CreateTemporaryTableFromTable(
+								typeMeta.TableName,
+								typeMeta.Properties,
+								transaction,
+								arbitraryColumns: new[] { "'      ' AS [Action]" }
+							);
+
+							outputSource = outputTarget;
+							outputClause = OutputMapExtensions.OutputClause(
+								outputTarget,
+								typeMeta.Properties,
+								new[] { "$action" }
+							);
+
+							sb.Append(outputClause);
+						}
+					}
 
 					sb.Append(";");
 
 					var query = sb.ToString();
 
-					if (mapGeneratedValues)
-					{
-						var results = await connection.QueryAsync<T>(
-							query,
-							param: parameters,
-							commandTimeout: commandTimeout,
-							transaction: transaction
-						);
-						outputValues.AddRange(results);
-						return results.Count();
-					}
-					else
-					{
-						return await connection.ExecuteAsync(
-							query,
-							param: parameters,
-							commandTimeout: commandTimeout,
-							transaction: transaction
-						);
-					}
-
+					return await connection.ExecuteWithOutputMapAsync<T>(
+						query,
+						parameters,
+						outputSource,
+						mapGeneratedValues,
+						(index, values) =>
+						{
+							outputMap(
+								entitiesToMerge,
+								values,
+								index == 0 ? typeMeta.PropertiesExceptKeyAndComputed : typeMeta.PropertiesKeyAndExplicit,
+								typeMeta.Properties
+							);
+						},
+						transaction: transaction,
+						commandTimeout: commandTimeout,
+						outputResultsSplitConditions: new[] { "[ACTION] = 'INSERT'", "[ACTION] = 'UPDATE'" }
+					);
 				},
 				transaction: transaction,
 				sqlBulkCopy: sqlBulkCopy
 			);
-
-			if (mapGeneratedValues)
-				outputMap(
-					entitiesToMerge,
-					outputValues,
-					typeMeta.PropertiesExceptKeyAndComputed,
-					typeMeta.PropertiesKeyAndComputed
-				);
-
-			return result;
 		}
 
 		public static IEnumerable<string> OnColumns(TypeMeta typeMeta, Action<MergeKeyOptions> keyAction = null)
@@ -228,6 +234,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		{
 			sb.AppendFormat("OUTPUT inserted.*");
 			sb.AppendLine();
+
+
 		}
 	}
 }

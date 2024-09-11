@@ -60,7 +60,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (connection.State != ConnectionState.Open)
 				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
-			var insertedTableName = await CreateTemporaryTableFromTable(connection, tableName, columnsToCopy, transaction);
+			var insertedTableName = await connection.CreateTemporaryTableFromTable(tableName, columnsToCopy, transaction);
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000 || !(connection is SqlConnection))
 			{
@@ -264,15 +264,14 @@ namespace Simpleverse.Repository.Db.SqlServer
 					{
 						if (typeMeta.PropertiesKey.Any())
 						{
-							var outputTarget = await CreateTemporaryTableFromTable(
-								conn,
+							var outputTarget = await conn.CreateTemporaryTableFromTable(
 								typeMeta.TableName,
 								typeMeta.PropertiesKeyAndExplicit,
 								transaction
 							);
 
 							outputSource = outputTarget;
-							outputClause = OutputClause(outputTarget, typeMeta.PropertiesKeyAndExplicit);
+							outputClause = OutputMapExtensions.OutputClause(outputTarget, typeMeta.PropertiesKeyAndExplicit);
 						}
 					}
 
@@ -282,7 +281,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 						parameters,
 						outputSource,
 						mapGeneratedValues,
-						(output) =>
+						(index, output) =>
 						{
 							outputMap(
 								entitiesToInsert,
@@ -351,7 +350,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 						parameters,
 						source,
 						mapGeneratedValues,
-						(output) =>
+						(index, output) =>
 						{
 							outputMap(
 								entitiesToUpdate,
@@ -423,87 +422,6 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return result;
 		}
 
-		private static string OutputClause(string targetTable = null, IEnumerable<PropertyInfo> properties = null)
-		{
-			var columns = properties?.ColumnList(prefix: "inserted");
-			if (string.IsNullOrWhiteSpace(columns))
-				columns = "inserted.*";
-
-			var clause = "OUTPUT " + columns;
-			if (!string.IsNullOrWhiteSpace(targetTable))
-				clause += $" INTO {targetTable}";
-
-			return clause;
-		}
-
-		private static async Task<int> ExecuteWithOutputMapAsync<T>(
-			this IDbConnection connection,
-			string query,
-			DynamicParameters parameters,
-			string outputSource,
-			bool mapGeneratedValues,
-			Action<IEnumerable<T>> map,
-			IDbTransaction transaction = null,
-			int? commandTimeout = null
-		)
-			where T : class
-		{
-			return await connection.ExecuteAsyncWithTransaction(
-				async (conn, tran) =>
-				{
-					var result = await conn.ExecuteAsync(
-						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: tran
-					);
-
-					if (mapGeneratedValues)
-					{
-						var typeMeta = TypeMeta.Get<T>();
-
-						var query = $@"
-							SELECT Target.*
-							FROM
-								(
-									SELECT {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "OutputSource")}
-									FROM {outputSource} AS OutputSource
-									GROUP BY {typeMeta.PropertiesKeyAndExplicit.ColumnList(prefix: "OutputSource")}
-								)  AS Source
-								INNER JOIN {typeMeta.TableName} AS Target WITH(NOLOCK)
-									ON {typeMeta.PropertiesKeyAndExplicit.ColumnListEquals(" AND ")};
-						";
-
-						var outputs = await conn.QueryAsync<T>(
-							query,
-							param: parameters,
-							transaction: tran,
-							commandTimeout: commandTimeout
-						);
-
-						map(outputs);
-					}
-
-					return result;
-				},
-				transaction: transaction
-			);
-		}
-
-		private async static Task<string> CreateTemporaryTableFromTable(IDbConnection connection, string tableName, IEnumerable<PropertyInfo> columns, IDbTransaction transaction)
-		{
-			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
-
-			await connection.ExecuteAsync(
-				$@"SELECT TOP 0 {columns.ColumnList()} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
-				UNION ALL
-				SELECT TOP 0 {columns.ColumnList()} FROM {tableName} WITH(NOLOCK);
-				"
-				, transaction: transaction
-			);
-			return insertedTableName;
-		}
-
 		public static async Task<(string source, DynamicParameters parameters)> BulkSourceAsync<T>(
 			this IDbConnection connection,
 			IEnumerable<T> entities,
@@ -554,26 +472,6 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 			return (insertedTableName, null);
 		}
-
-		//public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int size)
-		//{
-		//	var batch = new List<T>();
-		//	var index = 0;
-		//	foreach (var item in items)
-		//	{
-		//		batch.Add(item);
-		//		index++;
-
-		//		if (index % size == 0)
-		//		{
-		//			yield return batch;
-		//			batch = new List<T>();
-		//		}
-		//	}
-
-		//	if (batch.Count > 0)
-		//		yield return batch;
-		//}
 
 		public static async Task<R> ExecuteAsync<T, R>(
 			this IDbConnection connection,

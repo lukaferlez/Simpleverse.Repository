@@ -1,12 +1,42 @@
 ﻿using Dapper;
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
 {
 	public static class SqlConnectionExtensions
 	{
+		public async static Task<string> CreateTemporaryTableFromTable(
+			this IDbConnection connection,
+			string tableName,
+			IEnumerable<PropertyInfo> columns,
+			IDbTransaction transaction,
+			IEnumerable<string> arbitraryColumns = null
+		)
+		{
+			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
+
+			var columnsString = columns.ColumnList();
+			if (arbitraryColumns != null)
+			{
+				columnsString += " ,";
+				columnsString += string.Join(", ", arbitraryColumns);
+			}
+
+			await connection.ExecuteAsync(
+				$@"SELECT TOP 0 {columnsString} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
+				UNION ALL
+				SELECT TOP 0 {columnsString} FROM {tableName} WITH(NOLOCK);
+				",
+				transaction: transaction
+			);
+			return insertedTableName;
+		}
+
 		public static async Task<R> ExecuteAsyncWithTransaction<R>(this SqlConnection conn, Func<SqlConnection, SqlTransaction, Task<R>> function)
 		{
 			using (var tran = conn.BeginTransaction())
