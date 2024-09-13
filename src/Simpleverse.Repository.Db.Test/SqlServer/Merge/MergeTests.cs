@@ -39,7 +39,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 							options.CheckConditionOnColumns();
 						},
 						notMatchedByTarget: options => options.Insert(),
-						notMatchedBySource: options => options.Delete()
+						notMatchedBySource: options => options.Delete(),
+						outputMap: OutputMapper.Map
 					)
 					.Result;
 

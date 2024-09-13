@@ -141,7 +141,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 					var outputClause = string.Empty;
 					if (mapGeneratedValues)
 					{
-						if (typeMeta.PropertiesKey.Any())
+						if (typeMeta.PropertiesKeyAndExplicit.Any())
 						{
 							var outputTarget = await connection.CreateTemporaryTableFromTable(
 								typeMeta.TableName,
