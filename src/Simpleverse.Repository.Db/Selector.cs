@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Simpleverse.Repository.Extensions;
+using System;
 using System.Collections.Generic;
-using Simpleverse.Repository.Extensions;
 using System.Linq;
 
 namespace Simpleverse.Repository.Db
@@ -32,6 +32,12 @@ namespace Simpleverse.Repository.Db
 			Column = name;
 			TableAlias = alias;
 			Alias = name;
+		}
+
+		public Selector Count()
+		{
+			Selectors.Add(previous => $"COUNT({previous})");
+			return this;
 		}
 
 		public Selector Avg()
@@ -199,6 +205,12 @@ namespace Simpleverse.Repository.Db
 			else
 				Selectors.Add(previous => $"CASE WHEN {previous} THEN 1 ELSE 0 END");
 
+			return this;
+		}
+
+		public Selector Day()
+		{
+			Selectors.Add(previous => $"DAY{previous}");
 			return this;
 		}
 
