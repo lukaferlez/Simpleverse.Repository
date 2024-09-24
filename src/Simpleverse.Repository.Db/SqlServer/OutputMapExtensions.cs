@@ -39,7 +39,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 					{
 						var typeMeta = TypeMeta.Get<T>();
 
-						var query = $@"
+						var outputSelectQueryTemplate = $@"
 							SELECT Target.*
 							FROM
 								(
@@ -55,15 +55,15 @@ namespace Simpleverse.Repository.Db.SqlServer
 						if (outputResultsSplitConditions == null)
 							outputResultsSplitConditions = new[] { "" };
 
-						query = string.Join(
+						var outputSelectQuery = string.Join(
 							Environment.NewLine,
 							outputResultsSplitConditions.Select(
-								x => query.Replace("/**WHERE**/", string.IsNullOrWhiteSpace(x) ? "" : $"WHERE {x}")
+								x => outputSelectQueryTemplate.Replace("/**WHERE**/", string.IsNullOrWhiteSpace(x) ? "" : $"WHERE {x}")
 							)
 						);
 
 						var outputs = await conn.QueryMultipleAsync(
-							query,
+							outputSelectQuery,
 							param: parameters,
 							transaction: tran,
 							commandTimeout: commandTimeout
