@@ -1,8 +1,8 @@
 ﻿using Dapper;
+using Simpleverse.Repository.Db.Extensions.Dapper;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using Simpleverse.Repository.Db.Extensions.Dapper;
 
 namespace Simpleverse.Repository.Db
 {
@@ -162,6 +162,16 @@ namespace Simpleverse.Repository.Db
 		)
 		{
 			Select(tableReference.Column(column));
+			return this;
+		}
+
+		public QueryBuilder<TTable> Select<TSource, T>(
+			Table<TSource> tableReference,
+			Expression<Func<TSource, T>> column,
+			Action<Selector> selectorOptions
+		)
+		{
+			this.Select(tableReference.Column(column), selectorOptions);
 			return this;
 		}
 
