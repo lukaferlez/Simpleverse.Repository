@@ -483,7 +483,7 @@ namespace Simpleverse.Repository.Db
 			Func<Func<Expression<Func<TTable, object>>, Selector>, string> selectorBuilder
 		)
 		{
-			this.Where(selectorBuilder);
+			this.Where(Table, selectorBuilder);
 			return this;
 		}
 
