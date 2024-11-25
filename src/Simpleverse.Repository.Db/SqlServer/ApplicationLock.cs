@@ -1,7 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
-using System.Data.Common;
 using System.IO.Hashing;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,7 +28,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 		private bool wasClosed;
 		private readonly SqlConnection connection;
-		private DbTransaction transaction;
+		private IDbTransaction transaction;
 
 		public ApplicationLockScope(SqlConnection connection)
 		{
@@ -50,7 +49,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 			}
 
-			return await connection.GetAppLockAsync(key);
+			return await connection.GetAppLockAsync(key, transaction: transaction);
 		}
 
 		protected virtual void Dispose(bool disposing)
