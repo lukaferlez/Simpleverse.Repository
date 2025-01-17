@@ -2,6 +2,7 @@
 using Simpleverse.Repository.Db.Extensions.Dapper;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace Simpleverse.Repository.Db
@@ -334,6 +335,25 @@ namespace Simpleverse.Repository.Db
 		}
 
 		public QueryBuilder<TTable> WhereNot<T>(Expression<Func<TTable, T>> column, IEnumerable<T> values)
+			=> Where(column, values, not: true);
+
+		#endregion
+
+		#region Guid
+
+		public QueryBuilder<TTable> Where(Expression<Func<TTable, Guid>> column, Guid value, string condition = "=")
+		{
+			this.Where(Table.Column(column), value, condition: condition);
+			return this;
+		}
+
+		public QueryBuilder<TTable> Where(Expression<Func<TTable, Guid>> column, IEnumerable<Guid> values, bool not = false)
+		{
+			this.Where(Table.Column(column), values, not: not);
+			return this;
+		}
+
+		public QueryBuilder<TTable> WhereNot(Expression<Func<TTable, Guid>> column, IEnumerable<Guid> values)
 			=> Where(column, values, not: true);
 
 		#endregion

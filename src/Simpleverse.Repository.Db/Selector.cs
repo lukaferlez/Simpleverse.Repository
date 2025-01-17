@@ -113,6 +113,9 @@ namespace Simpleverse.Repository.Db
 			return In(valuesJoined, not);
 		}
 
+		public Selector In(IEnumerable<Guid> values, bool not = false)
+			=> In(values.Select(x => x.ToString()), not);
+
 		public Selector In(IEnumerable<DateTime> values, bool not = false)
 		{
 			if (values == null || !values.Any())

@@ -186,6 +186,30 @@ namespace Simpleverse.Repository.Db.Extensions.Dapper
 
 		#endregion
 
+		#region Guid
+
+		public static SqlBuilder Where(this SqlBuilder sqlBuilder, string name, IEnumerable<Guid> values, string alias, bool not = false)
+			=> sqlBuilder.Where(new Selector(name, alias), values, not: not);
+
+		public static SqlBuilder Where<TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, Guid>> column, IEnumerable<Guid> values, bool not = false)
+			=> sqlBuilder.Where(table.Column(column), values, not: not);
+
+		public static SqlBuilder Where(this SqlBuilder sqlBuilder, Selector column, IEnumerable<Guid> values, bool not = false)
+		{
+			if (values == null || !values.Any())
+				return sqlBuilder;
+
+			return sqlBuilder.Where(column.In(values, not).ToString());
+		}
+
+		public static void WhereNot(this SqlBuilder sqlBuilder, string name, IEnumerable<Guid> values, string alias)
+			=> sqlBuilder.Where(name, values, alias, not: true);
+
+		public static SqlBuilder WhereNot<TTable>(this SqlBuilder sqlBuilder, Table<TTable> table, Expression<Func<TTable, Guid>> column, IEnumerable<Guid> values)
+			=> sqlBuilder.Where(table.Column(column), values, not: true);
+
+		#endregion
+
 		#region DateTime
 
 		public static SqlBuilder Where(this SqlBuilder sqlBuilder, string name, IEnumerable<DateTime> values, string alias, bool not = false)
