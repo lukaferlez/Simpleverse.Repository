@@ -121,7 +121,7 @@ namespace Simpleverse.Repository.Db
 			if (values == null || !values.Any())
 				return this;
 
-			return In(string.Join(',', values.Select(x => $"'{x:yyyy-MM-ddThh:mm:ss.fff}'")), not);
+			return In(string.Join(',', values.Select(x => $"'{x:yyyy-MM-ddTHH:mm:ss.fff}'")), not);
 		}
 
 		private Selector In(string valuesJoined, bool not = false)
