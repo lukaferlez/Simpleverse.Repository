@@ -243,6 +243,15 @@ namespace Simpleverse.Repository.Db
 			return this;
 		}
 
+		public Selector Between(DateTime from, DateTime to)
+		{
+			Selectors.Add(previous =>
+				$"{previous} BETWEEN '{from:yyyy-MM-ddTHH:mm:ss.fff}' AND '{to:yyyy-MM-ddTHH:mm:ss.fff}'"
+			);
+
+			return this;
+		}
+
 		#region ToString
 
 		public override string ToString()
