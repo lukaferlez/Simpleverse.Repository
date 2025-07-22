@@ -13,5 +13,7 @@ namespace Simpleverse.Repository.Db.Test
 		public string String { get; set; }
 		public bool Bool { get; set; }
 		public bool? BoolNullable { get; set; }
+		public Guid Guid { get; set; }
+		public Guid? GuidNullable { get; set; }
 	}
 }

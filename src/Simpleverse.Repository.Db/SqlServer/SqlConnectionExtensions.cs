@@ -37,7 +37,10 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return insertedTableName;
 		}
 
-		public static async Task<R> ExecuteAsyncWithTransaction<R>(this SqlConnection conn, Func<SqlConnection, SqlTransaction, Task<R>> function)
+		public static async Task<R> ExecuteAsyncWithTransaction<R>(
+			this SqlConnection conn,
+			Func<SqlConnection, IDbTransaction, Task<R>> function
+		)
 		{
 			using (var tran = conn.BeginTransaction())
 			{
@@ -49,7 +52,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 		#region AppLock
 
-		public static async Task<bool> GetAppLockAsync(this SqlConnection connection, string key, SqlTransaction transaction = null)
+		public static async Task<bool> GetAppLockAsync(this SqlConnection connection, string key, IDbTransaction transaction = null)
 		{
 			if (key.Length > 255)
 				throw new ArgumentOutOfRangeException(nameof(key), "ength of the key used for locking must be less then 256 characters.");
@@ -67,7 +70,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return result == 0 || result == 1;
 		}
 
-		public static async Task<bool> ReleaseAppLockAsync(this SqlConnection connection, string key, SqlTransaction transaction = null)
+		public static async Task<bool> ReleaseAppLockAsync(this SqlConnection connection, string key, IDbTransaction transaction = null)
 		{
 			if (key.Length > 255)
 				throw new ArgumentOutOfRangeException(nameof(key), "Length of the key used for locking must be less then 256 characters.");
@@ -88,7 +91,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 		public static Task<R> ExecuteWithAppLockAsync<R>(
 			this SqlConnection conn,
 			string resourceIdentifier,
-			Func<SqlConnection, SqlTransaction, Task<R>> function
+			Func<SqlConnection, IDbTransaction, Task<R>> function
 		)
 		{
 			return conn.ExecuteAsyncWithTransaction(
@@ -97,9 +100,9 @@ namespace Simpleverse.Repository.Db.SqlServer
 		}
 
 		public static async Task<R> ExecuteWithAppLockAsync<R>(
-			this (SqlConnection conn, SqlTransaction tran) context,
+			this (SqlConnection conn, IDbTransaction tran) context,
 			string resourceIdentifier,
-			Func<SqlConnection, SqlTransaction, Task<R>> function
+			Func<SqlConnection, IDbTransaction, Task<R>> function
 		)
 		{
 			var lockResult = await context.conn.GetAppLockAsync(resourceIdentifier, transaction: context.tran);

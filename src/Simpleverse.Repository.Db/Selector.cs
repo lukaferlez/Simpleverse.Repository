@@ -113,12 +113,15 @@ namespace Simpleverse.Repository.Db
 			return In(valuesJoined, not);
 		}
 
+		public Selector In(IEnumerable<Guid> values, bool not = false)
+			=> In(values.Select(x => x.ToString()), not);
+
 		public Selector In(IEnumerable<DateTime> values, bool not = false)
 		{
 			if (values == null || !values.Any())
 				return this;
 
-			return In(string.Join(',', values.Select(x => $"'{x:O}'")), not);
+			return In(string.Join(',', values.Select(x => $"'{x:yyyy-MM-ddTHH:mm:ss.fff}'")), not);
 		}
 
 		private Selector In(string valuesJoined, bool not = false)

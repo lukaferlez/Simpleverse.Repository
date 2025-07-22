@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using StackExchange.Profiling.Data;
 using System;
+using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
@@ -34,12 +35,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 		public SqlRepository(Func<ProfiledDbConnection> connectionFactory)
 			: base(connectionFactory) { }
 
-		public async Task<R> ExecuteWithAppLockAsync<R>(string resourceIdentifier, Func<DbConnection, DbTransaction, Task<R>> function)
+		public async Task<R> ExecuteWithAppLockAsync<R>(string resourceIdentifier, Func<DbConnection, IDbTransaction, Task<R>> function)
 		{
 			return await ExecuteAsyncWithTransaction(
 				async (conn, tran) =>
 				{
-					return await ((SqlConnection)conn, (SqlTransaction)tran).ExecuteWithAppLockAsync(resourceIdentifier, function);
+					return await ((SqlConnection)conn, tran).ExecuteWithAppLockAsync(resourceIdentifier, function);
 				}
 			);
 		}
