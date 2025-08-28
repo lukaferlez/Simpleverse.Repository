@@ -42,7 +42,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			Func<SqlConnection, IDbTransaction, Task<R>> function
 		)
 		{
-			using (var tran = conn.BeginTransaction())
+			using (var tran = await conn.BeginTransactionAsync())
 			{
 				var result = await function(conn, tran);
 				await tran.CommitAsync();
@@ -52,18 +52,18 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 		#region AppLock
 
-		public static async Task<bool> GetAppLockAsync(this SqlConnection connection, string key, IDbTransaction transaction = null)
+		public static async Task<bool> GetAppLockAsync(this SqlConnection connection, string key, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
 		{
 			if (key.Length > 255)
-				throw new ArgumentOutOfRangeException(nameof(key), "ength of the key used for locking must be less then 256 characters.");
+				throw new ArgumentOutOfRangeException(nameof(key), "Length of the key used for locking must be less then 256 characters.");
 
 			var result = await connection.ExecuteScalarAsync<int>(
 				@"
 					declare @result int
-					exec @result = sp_getapplock @Resource, @LockMode
+					exec @result = sp_getapplock @Resource, @LockMode, @LockTimeout = @Timeout;
 					select @result
 				",
-				new { Resource = key, LockMode = "Exclusive" },
+				new { Resource = key, LockMode = "Exclusive", Timeout = lockTimeout == null ? -1 : lockTimeout.Value.TotalMilliseconds },
 				transaction: transaction
 			);
 
@@ -91,21 +91,23 @@ namespace Simpleverse.Repository.Db.SqlServer
 		public static Task<R> ExecuteWithAppLockAsync<R>(
 			this SqlConnection conn,
 			string resourceIdentifier,
-			Func<SqlConnection, IDbTransaction, Task<R>> function
+			Func<SqlConnection, IDbTransaction, Task<R>> function,
+			TimeSpan? lockTimeout = null
 		)
 		{
 			return conn.ExecuteAsyncWithTransaction(
-				(conn, tran) => (conn, tran).ExecuteWithAppLockAsync(resourceIdentifier, function)
+				(conn, tran) => (conn, tran).ExecuteWithAppLockAsync(resourceIdentifier, function, lockTimeout: lockTimeout)
 			);
 		}
 
 		public static async Task<R> ExecuteWithAppLockAsync<R>(
 			this (SqlConnection conn, IDbTransaction tran) context,
 			string resourceIdentifier,
-			Func<SqlConnection, IDbTransaction, Task<R>> function
+			Func<SqlConnection, IDbTransaction, Task<R>> function,
+			TimeSpan? lockTimeout = null
 		)
 		{
-			var lockResult = await context.conn.GetAppLockAsync(resourceIdentifier, transaction: context.tran);
+			var lockResult = await context.conn.GetAppLockAsync(resourceIdentifier, transaction: context.tran, lockTimeout: lockTimeout);
 			if (!lockResult)
 				throw new Exception($"Could not obtain lock for {resourceIdentifier}");
 

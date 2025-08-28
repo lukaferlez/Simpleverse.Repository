@@ -35,12 +35,16 @@ namespace Simpleverse.Repository.Db.SqlServer
 		public SqlRepository(Func<ProfiledDbConnection> connectionFactory)
 			: base(connectionFactory) { }
 
-		public async Task<R> ExecuteWithAppLockAsync<R>(string resourceIdentifier, Func<DbConnection, IDbTransaction, Task<R>> function)
+		public async Task<R> ExecuteWithAppLockAsync<R>(
+			string resourceIdentifier,
+			Func<DbConnection, IDbTransaction, Task<R>> function,
+			TimeSpan? lockTimeout = null
+		)
 		{
 			return await ExecuteAsyncWithTransaction(
 				async (conn, tran) =>
 				{
-					return await ((SqlConnection)conn, tran).ExecuteWithAppLockAsync(resourceIdentifier, function);
+					return await ((SqlConnection)conn, tran).ExecuteWithAppLockAsync(resourceIdentifier, function, lockTimeout: lockTimeout);
 				}
 			);
 		}
