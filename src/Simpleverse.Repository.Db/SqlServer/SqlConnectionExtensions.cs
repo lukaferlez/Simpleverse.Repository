@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
@@ -86,6 +87,66 @@ namespace Simpleverse.Repository.Db.SqlServer
 			);
 
 			return result == 0;
+		}
+
+		public static async Task<bool> ReleaseAppLockAsync(this SqlConnection connection, IEnumerable<string> keys, IDbTransaction transaction = null)
+		{
+			bool allReleased = true;
+
+			foreach (var key in keys)
+			{
+				var released = await connection.ReleaseAppLockAsync(key, transaction);
+				if (!released)
+					allReleased = false;
+			}
+
+			return allReleased;
+		}
+
+		public static async Task<bool> TryGetAcquireLocks(this SqlConnection connection, IEnumerable<int> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
+		{
+			if (keys == null)
+				throw new ArgumentException("Keys collection must not be null or empty.", nameof(keys));
+			if (numberOfRetries < 1)
+				throw new ArgumentOutOfRangeException(nameof(numberOfRetries), "Number of retries must be at least 1.");
+			if (retryTimeout < 0)
+				throw new ArgumentOutOfRangeException(nameof(retryTimeout), "Retry timeout must be non-negative.");
+
+			var acquiredLocks = new List<string>();
+
+			for (int retry = 0; retry < numberOfRetries; retry++)
+			{
+				bool allLocked = true;
+				acquiredLocks.Clear();
+
+				foreach (var key in keys)
+				{
+					var lockName = $"Sql_lock_{key}";
+					var locked = await connection.GetAppLockAsync(lockName, transaction, lockTimeout);
+					if (locked)
+					{
+						acquiredLocks.Add(lockName);
+					}
+					else
+					{
+						allLocked = false;
+						break;
+					}
+				}
+
+				if (!allLocked)
+				{
+					await connection.ReleaseAppLockAsync(acquiredLocks, transaction);
+
+					await Task.Delay(retryTimeout);
+				}
+				else
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		public static Task<R> ExecuteWithAppLockAsync<R>(
