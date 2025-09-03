@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,50 +104,45 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return allReleased;
 		}
 
-		public static async Task<bool> TryGetAcquireLocks(this SqlConnection connection, IEnumerable<int> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
+		public static async Task<bool> TryGetAppLockAsync(this SqlConnection connection, IEnumerable<int> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
 		{
-			if (keys == null)
+			if (keys == null || !keys.Any())
 				throw new ArgumentException("Keys collection must not be null or empty.", nameof(keys));
 			if (numberOfRetries < 1)
 				throw new ArgumentOutOfRangeException(nameof(numberOfRetries), "Number of retries must be at least 1.");
 			if (retryTimeout < 0)
 				throw new ArgumentOutOfRangeException(nameof(retryTimeout), "Retry timeout must be non-negative.");
 
-			var acquiredLocks = new List<string>();
+			bool allLocked = true;
 
 			for (int retry = 0; retry < numberOfRetries; retry++)
 			{
-				bool allLocked = true;
-				acquiredLocks.Clear();
+				int lastAttemptedIndex = -1;
+				allLocked = true;
 
 				foreach (var key in keys)
 				{
-					var lockName = $"Sql_lock_{key}";
+					var lockName = $"{key}";
 					var locked = await connection.GetAppLockAsync(lockName, transaction, lockTimeout);
-					if (locked)
-					{
-						acquiredLocks.Add(lockName);
-					}
-					else
+					lastAttemptedIndex = retry;
+
+					if (!locked)
 					{
 						allLocked = false;
-						break;
+						break;						
 					}
 				}
 
-				if (!allLocked)
-				{
-					await connection.ReleaseAppLockAsync(acquiredLocks, transaction);
+				if (allLocked)
+					break;
 
-					await Task.Delay(retryTimeout);
-				}
-				else
-				{
-					return true;
-				}
+				var keyToRelease = string.Join(",", keys.Take(lastAttemptedIndex + 1));
+
+				await connection.ReleaseAppLockAsync(keyToRelease, transaction);
+				await Task.Delay(retryTimeout);
 			}
 
-			return false;
+			return allLocked;
 		}
 
 		public static Task<R> ExecuteWithAppLockAsync<R>(
