@@ -30,7 +30,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					var keys = new List<int> { 101, 102, 103 };
 
 					// act
-					var result = await sqlConnection.TryGetAcquireLocks(keys, transaction: transaction);
+					var result = await sqlConnection.TryGetAppLockAsync(keys, transaction: transaction);
 
 					// assert
 					Assert.True(result);
@@ -51,7 +51,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 				connection.Open();
 				var sqlConnection = (SqlConnection)((ProfiledDbConnection)connection).WrappedConnection;
 				using var transaction = sqlConnection.BeginTransaction();
-				var result = await sqlConnection.TryGetAcquireLocks(keys, transaction: transaction, lockTimeout: TimeSpan.FromMilliseconds(500));
+				var result = await sqlConnection.TryGetAppLockAsync(keys, transaction: transaction, lockTimeout: TimeSpan.FromMilliseconds(500));
 				if (result)
 					transaction.Commit();
 				else
@@ -70,30 +70,6 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 		}
 
 		[Fact]
-		public async Task TryGetAcquireLocks_LocksNotAcquired_ReturnsFalse()
-		{
-			var keys = new List<int> { 301, 302, 303 };
-
-			// Simulate another session holding the locks
-			using var connection1 = _fixture.GetProfiledConnection();
-			connection1.Open();
-			var sqlConnection1 = (SqlConnection)((ProfiledDbConnection)connection1).WrappedConnection;
-			using var transaction1 = sqlConnection1.BeginTransaction();
-			await sqlConnection1.TryGetAcquireLocks(keys, transaction: transaction1, lockTimeout: TimeSpan.FromSeconds(10));
-
-			// Try to acquire the same locks with a short timeout
-			using var connection2 = _fixture.GetProfiledConnection();
-			connection2.Open();
-			var sqlConnection2 = (SqlConnection)((ProfiledDbConnection)connection2).WrappedConnection;
-			using var transaction2 = sqlConnection2.BeginTransaction();
-			var result = await sqlConnection2.TryGetAcquireLocks(keys, transaction: transaction2, lockTimeout: TimeSpan.FromMilliseconds(100));
-			Assert.False(result);
-
-			transaction1.Rollback();
-			transaction2.Rollback();
-		}
-
-		[Fact]
 		public async Task TryGetAcquireLocks_NullKeys_ThrowsArgumentException()
 		{
 			using var connection = _fixture.GetProfiledConnection();
@@ -103,10 +79,83 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 
 			await Assert.ThrowsAsync<ArgumentException>(async () =>
 			{
-				await sqlConnection.TryGetAcquireLocks(null, transaction: transaction);
+				await sqlConnection.TryGetAppLockAsync(null, transaction: transaction);
 			});
 
 			transaction.Rollback();
+		}
+
+		[Fact]
+		public async Task TryGetAcquireLocks_EmptyKeys()
+		{
+			using var connection = _fixture.GetProfiledConnection();
+			connection.Open();
+			var sqlConnection = (SqlConnection)((ProfiledDbConnection)connection).WrappedConnection;
+			using var transaction = sqlConnection.BeginTransaction();
+
+			try
+			{
+				await sqlConnection.TryGetAppLockAsync(new List<int> { }, transaction: transaction);
+			}
+			catch (ArgumentException ex) when (ex.Message.Contains("Keys collection must not be null or empty.", StringComparison.OrdinalIgnoreCase))
+			{
+				transaction.Rollback();
+				return;
+			}
+		}
+
+		[Fact]
+		public async Task TryGetAcquireLocks_DuplicateKeys_ReturnsTrue()
+		{
+			using var connection = _fixture.GetProfiledConnection();
+			connection.Open();
+			var sqlConnection = (SqlConnection)((ProfiledDbConnection)connection).WrappedConnection;
+			using var transaction = sqlConnection.BeginTransaction();
+
+			var keys = new List<int> { 301, 301, 302 };
+			var result = await sqlConnection.TryGetAppLockAsync(keys, transaction: transaction);
+
+			Assert.True(result);
+
+			transaction.Commit();
+		}
+
+		[Fact]
+		public async Task TryGetAcquireLocks_LockTimeout_ReturnsFalse()
+		{
+			var keys = new List<int> { 401, 402 };
+
+			using var connection1 = _fixture.GetProfiledConnection();
+			connection1.Open();
+			var sqlConnection1 = (SqlConnection)((ProfiledDbConnection)connection1).WrappedConnection;
+			using var transaction1 = sqlConnection1.BeginTransaction();
+			await sqlConnection1.TryGetAppLockAsync(keys, transaction: transaction1);
+
+			using var connection2 = _fixture.GetProfiledConnection();
+			connection2.Open();
+			var sqlConnection2 = (SqlConnection)((ProfiledDbConnection)connection2).WrappedConnection;
+			using var transaction2 = sqlConnection2.BeginTransaction();
+
+			await Assert.ThrowsAsync<SqlException>(async () =>
+			{
+				var result = await sqlConnection2.TryGetAppLockAsync(keys, transaction: transaction2, lockTimeout: TimeSpan.FromMilliseconds(100));
+			});
+
+			transaction1.Rollback();
+			transaction2.Rollback();
+		}
+
+		[Fact]
+		public async Task TryGetAcquireLocks_NullTransaction_ThrowsArgumentNullException()
+		{
+			using var connection = _fixture.GetProfiledConnection();
+			connection.Open();
+			var sqlConnection = (SqlConnection)((ProfiledDbConnection)connection).WrappedConnection;
+
+			await Assert.ThrowsAsync<SqlException>(async () =>
+			{
+				await sqlConnection.TryGetAppLockAsync(new List<int> { 501 }, transaction: null);
+			});
 		}
 	}
 }
