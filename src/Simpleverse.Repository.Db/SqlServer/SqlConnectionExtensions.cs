@@ -104,7 +104,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			return allReleased;
 		}
 
-		public static async Task<bool> TryGetAppLockAsync(this SqlConnection connection, IEnumerable<int> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
+		public static async Task<bool> TryGetAppLockAsync(this SqlConnection connection, IEnumerable<string> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
 		{
 			if (keys == null || !keys.Any())
 				throw new ArgumentException("Keys collection must not be null or empty.", nameof(keys));
@@ -122,23 +122,21 @@ namespace Simpleverse.Repository.Db.SqlServer
 
 				foreach (var key in keys)
 				{
-					var lockName = $"{key}";
-					var locked = await connection.GetAppLockAsync(lockName, transaction, lockTimeout);
-					lastAttemptedIndex = retry;
-
+					var locked = await connection.GetAppLockAsync(key, transaction, lockTimeout);
+					
 					if (!locked)
 					{
 						allLocked = false;
 						break;						
 					}
+
+					lastAttemptedIndex++;
 				}
 
 				if (allLocked)
 					break;
 
-				var keyToRelease = string.Join(",", keys.Take(lastAttemptedIndex + 1));
-
-				await connection.ReleaseAppLockAsync(keyToRelease, transaction);
+				await connection.ReleaseAppLockAsync(keys.Take(lastAttemptedIndex + 1), transaction);
 				await Task.Delay(retryTimeout);
 			}
 
