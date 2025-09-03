@@ -3,7 +3,9 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
@@ -86,6 +88,59 @@ namespace Simpleverse.Repository.Db.SqlServer
 			);
 
 			return result == 0;
+		}
+
+		public static async Task<bool> ReleaseAppLockAsync(this SqlConnection connection, IEnumerable<string> keys, IDbTransaction transaction = null)
+		{
+			bool allReleased = true;
+
+			foreach (var key in keys)
+			{
+				var released = await connection.ReleaseAppLockAsync(key, transaction);
+				if (!released)
+					allReleased = false;
+			}
+
+			return allReleased;
+		}
+
+		public static async Task<bool> TryGetAppLockAsync(this SqlConnection connection, IEnumerable<string> keys, int retryTimeout = 100, int numberOfRetries = 3, IDbTransaction transaction = null, TimeSpan? lockTimeout = null)
+		{
+			if (keys == null || !keys.Any())
+				throw new ArgumentException("Keys collection must not be null or empty.", nameof(keys));
+			if (numberOfRetries < 1)
+				throw new ArgumentOutOfRangeException(nameof(numberOfRetries), "Number of retries must be at least 1.");
+			if (retryTimeout < 0)
+				throw new ArgumentOutOfRangeException(nameof(retryTimeout), "Retry timeout must be non-negative.");
+
+			bool allLocked = true;
+
+			for (int retry = 0; retry < numberOfRetries; retry++)
+			{
+				int lastAttemptedIndex = -1;
+				allLocked = true;
+
+				foreach (var key in keys)
+				{
+					var locked = await connection.GetAppLockAsync(key, transaction, lockTimeout);
+					
+					if (!locked)
+					{
+						allLocked = false;
+						break;						
+					}
+
+					lastAttemptedIndex++;
+				}
+
+				if (allLocked)
+					break;
+
+				await connection.ReleaseAppLockAsync(keys.Take(lastAttemptedIndex + 1), transaction);
+				await Task.Delay(retryTimeout);
+			}
+
+			return allLocked;
 		}
 
 		public static Task<R> ExecuteWithAppLockAsync<R>(
