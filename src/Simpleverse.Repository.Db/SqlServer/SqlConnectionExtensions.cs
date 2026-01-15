@@ -59,13 +59,15 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (key.Length > 255)
 				throw new ArgumentOutOfRangeException(nameof(key), "Length of the key used for locking must be less then 256 characters.");
 
+			var lockOwner = transaction == null ? "Session" : "Transaction";
+
 			var result = await connection.ExecuteScalarAsync<int>(
 				@"
 					declare @result int
-					exec @result = sp_getapplock @Resource, @LockMode, @LockTimeout = @Timeout;
+					exec @result = sp_getapplock @Resource, @LockMode, @LockOwner, @LockTimeout = @Timeout;
 					select @result
 				",
-				new { Resource = key, LockMode = "Exclusive", Timeout = lockTimeout == null ? -1 : lockTimeout.Value.TotalMilliseconds },
+				new { Resource = key, LockMode = "Exclusive", LockOwner = lockOwner, Timeout = lockTimeout == null ? -1 : lockTimeout.Value.TotalMilliseconds },
 				transaction: transaction
 			);
 
