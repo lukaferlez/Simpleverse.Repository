@@ -43,6 +43,18 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 					);");
 
 				connection.Execute(
+					$@"{DropTable("[IdentityExpandedFrom]")}
+					CREATE TABLE [IdentityExpandedFrom]
+					(
+						[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+						[Name] NVARCHAR(MAX) NULL,
+						[From] NVARCHAR(MAX) NULL,
+						[City] NVARCHAR(MAX) NULL,
+						[Street] NVARCHAR(MAX) NULL,
+						[HouseNo] NVARCHAR(MAX) NULL
+					);");
+
+				connection.Execute(
 					$@"{DropTable("ExplicitKey")}
 					CREATE TABLE ExplicitKey(
 						[Id] INT NOT NULL PRIMARY KEY,
@@ -135,6 +147,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer
 			{
 				connection.Open();
 				connection.Execute($@"{DropTable("[Identity]")}");
+				connection.Execute($@"{DropTable("[IdentityExpandedFrom]")}");
 				connection.Execute($@"{DropTable("[ExplicitKey]")}");
 				connection.Execute($@"{DropTable("[IdentityAndExplict]")}");
 				connection.Execute($@"{DropTable("[Computed]")}");

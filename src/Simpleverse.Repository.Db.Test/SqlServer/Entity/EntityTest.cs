@@ -5,6 +5,7 @@ using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.SqlServer;
 using StackExchange.Profiling.Data;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Transactions;
@@ -186,7 +187,36 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		}
 
 		[Theory]
-		[InlineData(10)]
+		[InlineData("City|Street|Number")]
+		[InlineData("Adress")]
+		public async Task GetAsync_WhenFilterInCorrectFormat_UsesFilterAction(string from)
+		{
+			{
+				using (var profiler = Profile())
+				using (var connection = _fixture.GetProfiledConnection())
+				{
+					// arange
+					connection.Open();
+					connection.Truncate<IdentityExpandedFrom>();
+					var fromRecord = TestData.IdentityExpandedFromWithAllData(from);
+					connection.Insert(fromRecord);
+					var entity = new IdentityExpandedFromEntity(_sqlRepository);
+
+					// act
+					await entity.AddAsync(fromRecord);
+					var returnedEntity = await entity.GetAsync(filter => filter.From = from);
+					// assert
+					Assert.NotNull(returnedEntity);
+					Assert.Equal(fromRecord.From, returnedEntity.From);
+					Assert.Equal(fromRecord.City, returnedEntity.City);
+					Assert.Equal(fromRecord.Street, returnedEntity.Street);
+					Assert.Equal(fromRecord.HouseNo, returnedEntity.HouseNo);
+				}
+			}
+		}
+
+		[Theory]
+		[InlineData(2)]
 		public async Task ListAsync_WhenProvidedSqlRepository_ReturnsRecords(int count)
 		{
 			using (var profiler = Profile())
@@ -277,7 +307,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 
 		public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
 
-		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
+		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options, Action<IEnumerable<string>> action = null)
 		{
 			var explicitKey = new Table<ExplicitKey>("EK");
 
@@ -289,18 +319,46 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 				ek => ek.Id
 			);
 
-			base.SelectQuery(builder, filter, options);
+			base.SelectQuery(builder, filter, options, action);
 		}
 
-		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
+		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter, Action<IEnumerable<string>> action = null)
 		{
 			builder.Where(x => x.Name, filter.Name);
-			base.Filter(builder, filter);
+			base.Filter(builder, filter, action);
 		}
 	}
 
 	public class IdentityQueryFilter
 	{
 		public virtual string Name { get; set; }
+	}
+
+	public class IdentityExpandedFromEntity : Entity<IdentityExpandedFrom, DbQueryOptions>
+	{
+		public IdentityExpandedFromEntity(DatabaseFixture fixture)
+			: base(new DbRepository(() => fixture.GetProfiledConnection()), new Table<IdentityExpandedFrom>("IEF"))
+		{
+		}
+
+		public IdentityExpandedFromEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<IdentityExpandedFrom>("IEF")) { }
+
+		protected override void Filter(QueryBuilder<IdentityExpandedFrom> builder, IdentityExpandedFrom filter, Action<IEnumerable<string>> action = null)
+		{
+			if (filter.From.Count(c => c == '|') == 2)
+			{
+				string[] split = filter.From.Split('|');
+				filter.City = split[0];
+				filter.Street = split[1];
+				filter.HouseNo = split[2];
+
+				Action<IEnumerable<string>> filterAction = (changedProperties) =>
+				{
+					var filteredProperties = changedProperties.Where(p => p != "From");
+					action?.Invoke(filteredProperties);
+				}; 
+			}
+			else base.Filter(builder, filter, action);
+		}
 	}
 }

@@ -131,10 +131,10 @@ namespace Simpleverse.Repository.Db.Entity
 			return connection.QueryAsync<T>(query, tran: transaction);
 		}
 
-		protected virtual void SelectQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
+		protected virtual void SelectQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options, Action<IEnumerable<string>> action = null)
 		{
 			builder.SelectAll();
-			Query(builder, filter);
+			Query(builder, filter, action);
 		}
 
 		protected virtual SqlBuilder.Template SelectTemplate(QueryBuilder<TModel> builder, TOptions options)
@@ -144,10 +144,10 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#endregion
 
-		protected void Query(QueryBuilder<TModel> builder, TFilter filter)
+		protected void Query(QueryBuilder<TModel> builder, TFilter filter, Action<IEnumerable<string>> action = null)
 		{
 			Join(builder, filter);
-			Filter(builder, filter);
+			Filter(builder, filter, action);
 		}
 
 		#endregion
@@ -261,10 +261,10 @@ namespace Simpleverse.Repository.Db.Entity
 			return connection.ExecuteAsync(query, tran: transaction);
 		}
 
-		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
+		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options, Action<IEnumerable<string>> action = null)
 		{
 			Set(builder, update);
-			Query(builder, filter);
+			Query(builder, filter, action);
 		}
 
 		protected virtual SqlBuilder.Template UpdateTemplate(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
@@ -412,8 +412,8 @@ namespace Simpleverse.Repository.Db.Entity
 			return connection.ExecuteAsync(query, tran: transaction);
 		}
 
-		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
-			=> Query(builder, filter);
+		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options, Action<IEnumerable<string>> action = null)
+			=> Query(builder, filter, action);
 
 		protected virtual SqlBuilder.Template DeleteTemplate(QueryBuilder<TModel> builder, TOptions options)
 		{
@@ -581,13 +581,15 @@ namespace Simpleverse.Repository.Db.Entity
 			);
 		}
 
-		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter)
+		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter, Action<IEnumerable<string>> action = null)
 		{
 			var changeTrack = filter as IChangeTrack;
 			if (changeTrack == null)
 				return;
 
-			foreach (var propertyName in changeTrack.Changed)
+			var changed = changeTrack.Changed;
+			action?.Invoke(changed);
+			foreach (var propertyName in changed)
 			{
 				var property = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == propertyName);
 				if (property is null)

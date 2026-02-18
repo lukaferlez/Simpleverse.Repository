@@ -2,6 +2,7 @@
 using Simpleverse.Repository.Db.Meta;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Simpleverse.Repository.Db.Test
 {
@@ -27,6 +28,25 @@ namespace Simpleverse.Repository.Db.Test
 
 		public static IEnumerable<Identity> IdentityWithIdData(int count) =>
 			Generate(x => new Identity() { Id = x, Name = x.ToString() }, count);
+
+		public static IdentityExpandedFrom IdentityExpandedFromWithAllData(string from) =>
+			Generate(x =>
+			{
+				string[] splitFrom = null;
+				if (from.Count(c => c == '|') == 2)
+					splitFrom = from.Split('|');
+
+				return new IdentityExpandedFrom()
+				{
+					Id = x,
+					Name = x.ToString(),
+					From = splitFrom == null ? from : null,
+					City = splitFrom != null ? splitFrom[0] : null,
+					Street = splitFrom != null ? splitFrom[1] : null,
+					HouseNo = splitFrom != null ? splitFrom[2] : null
+				};
+			}, 1)
+			.First();
 
 		public static IEnumerable<ExplicitKey> ExplicitKeyData(int count) =>
 			Generate(x => new ExplicitKey() { Id = x, Name = x.ToString() }, count);
@@ -167,6 +187,14 @@ namespace Simpleverse.Repository.Db.Test
 	{
 		[Immutable]
 		public int ImmutableValue { get; set; }
+	}
+
+	[Table("[IdentityExpandedFrom]")]
+	public class IdentityExpandedFrom : Identity
+	{
+		public virtual string City { get; set; }
+		public virtual string Street { get; set; }
+		public virtual string HouseNo { get; set; }
 	}
 
 	public enum @Enum

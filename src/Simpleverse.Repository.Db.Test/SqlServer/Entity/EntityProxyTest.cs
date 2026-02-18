@@ -1,5 +1,7 @@
 ﻿using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.Entity;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -275,9 +277,9 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 		}
 
-		protected override void Filter(QueryBuilder<EntityNonVirtualModel> builder, EntityNonVirtualModel filter)
+		protected override void Filter(QueryBuilder<EntityNonVirtualModel> builder, EntityNonVirtualModel filter, Action<IEnumerable<string>> action = null)
 		{
-			base.Filter(builder, filter);
+			base.Filter(builder, filter, action);
 			builder.Where(x => x.Id, filter.Id);
 			builder.Where(x => x.Name, filter.Name);
 			builder.Where(x => x.Active, filter.Active);
@@ -320,9 +322,9 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 		}
 
-		protected override void Filter(QueryBuilder<EntityModelExtended> builder, EntityModelExtended filter)
+		protected override void Filter(QueryBuilder<EntityModelExtended> builder, EntityModelExtended filter, Action<IEnumerable<string>> action = null)
 		{
-			base.Filter(builder, filter);
+			base.Filter(builder, filter, action);
 			IfChanged(filter, x => x.DummyValue, () => builder.Where(x => x.DummyValue, filter.DummyValue));
 		}
 	}
