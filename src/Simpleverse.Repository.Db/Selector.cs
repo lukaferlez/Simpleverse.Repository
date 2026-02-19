@@ -252,6 +252,12 @@ namespace Simpleverse.Repository.Db
 			return this;
 		}
 
+		public Selector Cast(string type)
+		{
+			Selectors.Add(previous => $"CAST({previous} AS {type})");
+			return this;
+		}
+
 		#region ToString
 
 		public override string ToString()
