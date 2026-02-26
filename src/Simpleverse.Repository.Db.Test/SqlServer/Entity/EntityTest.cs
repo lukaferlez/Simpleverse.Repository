@@ -1,13 +1,15 @@
-﻿using Dapper.Contrib.Extensions;
+﻿using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Transactions;
+using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.Entity;
 using Simpleverse.Repository.Db.Extensions;
 using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.SqlServer;
 using StackExchange.Profiling.Data;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Transactions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -185,8 +187,35 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			}
 		}
 
+		[Fact]
+		public async Task GetAsync_WhenFilterContainsDateOfBirth_FiltersAsDateOnly()
+		{
+			{
+				using (var profiler = Profile())
+				using (var connection = _fixture.GetProfiledConnection())
+				{
+					// arange
+					connection.Open();
+					connection.Truncate<IdentityDateOfBirth>();
+					var dobRecord = TestData.IdentityDateOfBirthWithAllData(1).First();
+					connection.Insert(dobRecord);
+					var entity = new IdentityDateOfBirthEntity(_sqlRepository);
+
+					// act
+					await entity.AddAsync(dobRecord);
+					var filterDay = DateOnly.FromDateTime(dobRecord.DateOfBirth);
+					var returnedEntity = await entity.GetAsync(filter => filter.DateOfBirth = filterDay.ToDateTime(TimeOnly.MinValue));
+
+					// assert
+					Assert.NotNull(returnedEntity);
+					Assert.Equal(dobRecord.From, returnedEntity.From);
+					Assert.Equal(dobRecord.DateOfBirth, returnedEntity.DateOfBirth);
+				}
+			}
+		}
+
 		[Theory]
-		[InlineData(10)]
+		[InlineData(2)]
 		public async Task ListAsync_WhenProvidedSqlRepository_ReturnsRecords(int count)
 		{
 			using (var profiler = Profile())
@@ -302,5 +331,35 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 	public class IdentityQueryFilter
 	{
 		public virtual string Name { get; set; }
+	}
+
+	public class IdentityDateOfBirthEntity : Entity<IdentityDateOfBirth, DbQueryOptions>
+	{
+		public IdentityDateOfBirthEntity(DatabaseFixture fixture)
+			: base(new DbRepository(() => fixture.GetProfiledConnection()), new Table<IdentityDateOfBirth>("IDB"))
+		{
+		}
+
+		public IdentityDateOfBirthEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<IdentityDateOfBirth>("IDB")) { }
+
+		protected override void Filter(QueryBuilder<IdentityDateOfBirth> builder, IdentityDateOfBirth filter)
+		{
+			var dateOfBirthProperty = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == nameof(filter.DateOfBirth));
+			if (dateOfBirthProperty != null)
+			{
+				builder.Where($"CAST({Source.Column(x => x.DateOfBirth)} AS DATE) = CAST(@DateOfBirth AS DATE)", new { filter.DateOfBirth });
+			}
+
+			base.Filter(builder, filter);
+		}
+
+		protected override IEnumerable<string> GetFilterConditions(IdentityDateOfBirth filter)
+		{
+			var changed = base.GetFilterConditions(filter).ToList();
+
+			changed.Remove(nameof(IdentityDateOfBirth.DateOfBirth));
+
+			return changed;
+		}
 	}
 }

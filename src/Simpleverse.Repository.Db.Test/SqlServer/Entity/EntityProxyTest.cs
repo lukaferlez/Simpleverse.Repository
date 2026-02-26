@@ -1,5 +1,7 @@
 ﻿using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.Entity;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;

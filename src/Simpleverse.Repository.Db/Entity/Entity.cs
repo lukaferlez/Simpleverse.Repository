@@ -583,11 +583,7 @@ namespace Simpleverse.Repository.Db.Entity
 
 		protected virtual void Filter(QueryBuilder<TModel> builder, TFilter filter)
 		{
-			var changeTrack = filter as IChangeTrack;
-			if (changeTrack == null)
-				return;
-
-			foreach (var propertyName in changeTrack.Changed)
+			foreach (var propertyName in GetFilterConditions(filter))
 			{
 				var property = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == propertyName);
 				if (property is null)
@@ -625,6 +621,9 @@ namespace Simpleverse.Repository.Db.Entity
 				}
 			}
 		}
+
+		protected virtual IEnumerable<string> GetFilterConditions(TFilter filter)
+			=> (filter as IChangeTrack)?.Changed ?? Array.Empty<string>();
 
 		protected virtual void Join(QueryBuilder<TModel> builder, TFilter filter) { }
 

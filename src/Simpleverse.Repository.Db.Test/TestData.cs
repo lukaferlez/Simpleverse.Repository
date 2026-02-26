@@ -2,6 +2,7 @@
 using Simpleverse.Repository.Db.Meta;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Simpleverse.Repository.Db.Test
 {
@@ -27,6 +28,9 @@ namespace Simpleverse.Repository.Db.Test
 
 		public static IEnumerable<Identity> IdentityWithIdData(int count) =>
 			Generate(x => new Identity() { Id = x, Name = x.ToString() }, count);
+
+		public static IEnumerable<IdentityDateOfBirth> IdentityDateOfBirthWithAllData(int count) =>
+			Generate(x => new IdentityDateOfBirth() { Id = x, Name = x.ToString(), DateOfBirth = DateTime.UtcNow }, count);
 
 		public static IEnumerable<ExplicitKey> ExplicitKeyData(int count) =>
 			Generate(x => new ExplicitKey() { Id = x, Name = x.ToString() }, count);
@@ -167,6 +171,12 @@ namespace Simpleverse.Repository.Db.Test
 	{
 		[Immutable]
 		public int ImmutableValue { get; set; }
+	}
+
+	[Table("[IdentityDateOfBirth]")]
+	public class IdentityDateOfBirth : Identity
+	{
+		public virtual DateTime DateOfBirth { get; set; }
 	}
 
 	public enum @Enum
