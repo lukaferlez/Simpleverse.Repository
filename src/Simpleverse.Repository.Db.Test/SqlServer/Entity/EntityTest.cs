@@ -1,14 +1,15 @@
-﻿using Dapper.Contrib.Extensions;
+﻿using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Transactions;
+using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.Db.Entity;
 using Simpleverse.Repository.Db.Extensions;
 using Simpleverse.Repository.Db.Extensions.Dapper;
 using Simpleverse.Repository.Db.SqlServer;
 using StackExchange.Profiling.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Transactions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -186,10 +187,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			}
 		}
 
-		[Theory]
-		[InlineData("City|Street|Number")]
-		[InlineData("Adress")]
-		public async Task GetAsync_WhenFilterInCorrectFormat_UsesFilterAction(string from)
+		[Fact]
+		public async Task GetAsync_WhenFilterContainsDateOfBirth_FiltersAsDateOnly()
 		{
 			{
 				using (var profiler = Profile())
@@ -197,20 +196,20 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 				{
 					// arange
 					connection.Open();
-					connection.Truncate<IdentityExpandedFrom>();
-					var fromRecord = TestData.IdentityExpandedFromWithAllData(from);
-					connection.Insert(fromRecord);
-					var entity = new IdentityExpandedFromEntity(_sqlRepository);
+					connection.Truncate<IdentityDateOfBirth>();
+					var dobRecord = TestData.IdentityDateOfBirthWithAllData(1).First();
+					connection.Insert(dobRecord);
+					var entity = new IdentityDateOfBirthEntity(_sqlRepository);
 
 					// act
-					await entity.AddAsync(fromRecord);
-					var returnedEntity = await entity.GetAsync(filter => filter.From = from);
+					await entity.AddAsync(dobRecord);
+					var filterDay = DateOnly.FromDateTime(dobRecord.DateOfBirth);
+					var returnedEntity = await entity.GetAsync(filter => filter.DateOfBirth = filterDay.ToDateTime(TimeOnly.MinValue));
+
 					// assert
 					Assert.NotNull(returnedEntity);
-					Assert.Equal(fromRecord.From, returnedEntity.From);
-					Assert.Equal(fromRecord.City, returnedEntity.City);
-					Assert.Equal(fromRecord.Street, returnedEntity.Street);
-					Assert.Equal(fromRecord.HouseNo, returnedEntity.HouseNo);
+					Assert.Equal(dobRecord.From, returnedEntity.From);
+					Assert.Equal(dobRecord.DateOfBirth, returnedEntity.DateOfBirth);
 				}
 			}
 		}
@@ -307,7 +306,7 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 
 		public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
 
-		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options, Action<IEnumerable<string>> action = null)
+		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
 		{
 			var explicitKey = new Table<ExplicitKey>("EK");
 
@@ -319,13 +318,13 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 				ek => ek.Id
 			);
 
-			base.SelectQuery(builder, filter, options, action);
+			base.SelectQuery(builder, filter, options);
 		}
 
-		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter, Action<IEnumerable<string>> action = null)
+		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
 		{
 			builder.Where(x => x.Name, filter.Name);
-			base.Filter(builder, filter, action);
+			base.Filter(builder, filter);
 		}
 	}
 
@@ -334,31 +333,33 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		public virtual string Name { get; set; }
 	}
 
-	public class IdentityExpandedFromEntity : Entity<IdentityExpandedFrom, DbQueryOptions>
+	public class IdentityDateOfBirthEntity : Entity<IdentityDateOfBirth, DbQueryOptions>
 	{
-		public IdentityExpandedFromEntity(DatabaseFixture fixture)
-			: base(new DbRepository(() => fixture.GetProfiledConnection()), new Table<IdentityExpandedFrom>("IEF"))
+		public IdentityDateOfBirthEntity(DatabaseFixture fixture)
+			: base(new DbRepository(() => fixture.GetProfiledConnection()), new Table<IdentityDateOfBirth>("IDB"))
 		{
 		}
 
-		public IdentityExpandedFromEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<IdentityExpandedFrom>("IEF")) { }
+		public IdentityDateOfBirthEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<IdentityDateOfBirth>("IDB")) { }
 
-		protected override void Filter(QueryBuilder<IdentityExpandedFrom> builder, IdentityExpandedFrom filter, Action<IEnumerable<string>> action = null)
+		protected override void Filter(QueryBuilder<IdentityDateOfBirth> builder, IdentityDateOfBirth filter)
 		{
-			if (filter.From.Count(c => c == '|') == 2)
+			var dateOfBirthProperty = builder.Table.Meta.Properties.SingleOrDefault(x => x.Name == nameof(filter.DateOfBirth));
+			if (dateOfBirthProperty != null)
 			{
-				string[] split = filter.From.Split('|');
-				filter.City = split[0];
-				filter.Street = split[1];
-				filter.HouseNo = split[2];
-
-				Action<IEnumerable<string>> filterAction = (changedProperties) =>
-				{
-					var filteredProperties = changedProperties.Where(p => p != "From");
-					action?.Invoke(filteredProperties);
-				}; 
+				builder.Where($"CAST({Source.Column(x => x.DateOfBirth)} AS DATE) = CAST(@DateOfBirth AS DATE)", new { filter.DateOfBirth });
 			}
-			else base.Filter(builder, filter, action);
+
+			base.Filter(builder, filter);
+		}
+
+		protected override IEnumerable<string> GetFilterConditions(IdentityDateOfBirth filter)
+		{
+			var changed = base.GetFilterConditions(filter).ToList();
+
+			changed.Remove(nameof(IdentityDateOfBirth.DateOfBirth));
+
+			return changed;
 		}
 	}
 }

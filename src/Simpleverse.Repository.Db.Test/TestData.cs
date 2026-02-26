@@ -29,24 +29,8 @@ namespace Simpleverse.Repository.Db.Test
 		public static IEnumerable<Identity> IdentityWithIdData(int count) =>
 			Generate(x => new Identity() { Id = x, Name = x.ToString() }, count);
 
-		public static IdentityExpandedFrom IdentityExpandedFromWithAllData(string from) =>
-			Generate(x =>
-			{
-				string[] splitFrom = null;
-				if (from.Count(c => c == '|') == 2)
-					splitFrom = from.Split('|');
-
-				return new IdentityExpandedFrom()
-				{
-					Id = x,
-					Name = x.ToString(),
-					From = splitFrom == null ? from : null,
-					City = splitFrom != null ? splitFrom[0] : null,
-					Street = splitFrom != null ? splitFrom[1] : null,
-					HouseNo = splitFrom != null ? splitFrom[2] : null
-				};
-			}, 1)
-			.First();
+		public static IEnumerable<IdentityDateOfBirth> IdentityDateOfBirthWithAllData(int count) =>
+			Generate(x => new IdentityDateOfBirth() { Id = x, Name = x.ToString(), DateOfBirth = DateTime.UtcNow }, count);
 
 		public static IEnumerable<ExplicitKey> ExplicitKeyData(int count) =>
 			Generate(x => new ExplicitKey() { Id = x, Name = x.ToString() }, count);
@@ -189,12 +173,10 @@ namespace Simpleverse.Repository.Db.Test
 		public int ImmutableValue { get; set; }
 	}
 
-	[Table("[IdentityExpandedFrom]")]
-	public class IdentityExpandedFrom : Identity
+	[Table("[IdentityDateOfBirth]")]
+	public class IdentityDateOfBirth : Identity
 	{
-		public virtual string City { get; set; }
-		public virtual string Street { get; set; }
-		public virtual string HouseNo { get; set; }
+		public virtual DateTime DateOfBirth { get; set; }
 	}
 
 	public enum @Enum

@@ -277,9 +277,9 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 		}
 
-		protected override void Filter(QueryBuilder<EntityNonVirtualModel> builder, EntityNonVirtualModel filter, Action<IEnumerable<string>> action = null)
+		protected override void Filter(QueryBuilder<EntityNonVirtualModel> builder, EntityNonVirtualModel filter)
 		{
-			base.Filter(builder, filter, action);
+			base.Filter(builder, filter);
 			builder.Where(x => x.Id, filter.Id);
 			builder.Where(x => x.Name, filter.Name);
 			builder.Where(x => x.Active, filter.Active);
@@ -322,9 +322,9 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		{
 		}
 
-		protected override void Filter(QueryBuilder<EntityModelExtended> builder, EntityModelExtended filter, Action<IEnumerable<string>> action = null)
+		protected override void Filter(QueryBuilder<EntityModelExtended> builder, EntityModelExtended filter)
 		{
-			base.Filter(builder, filter, action);
+			base.Filter(builder, filter);
 			IfChanged(filter, x => x.DummyValue, () => builder.Where(x => x.DummyValue, filter.DummyValue));
 		}
 	}
