@@ -6,17 +6,17 @@
     <Authors>Luka Ferlež</Authors>
     <Company />
     <Product>Simpleverse.Repository</Product>
-    <Copyright>2023 Luka Ferlež</Copyright>
+    <Copyright>2026 Luka Ferlež</Copyright>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/lukaferlez/Simpleverse.Repository</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>Dapper, Bulk, Merge, Upsert, Delete, Insert, Update, Repository</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>2.1.33</Version>
+    <Version>2.1.34</Version>
     <Description>High performance operation for MS SQL Server built for Dapper ORM. Including bulk operations Insert, Update, Delete, Get as well as Upsert both single and bulk.</Description>
-    <AssemblyVersion>2.1.33.0</AssemblyVersion>
-    <FileVersion>2.1.33.0</FileVersion>
+    <AssemblyVersion>2.1.34.0</AssemblyVersion>
+    <FileVersion>2.1.34.0</FileVersion>
     <RepositoryUrl>https://github.com/lukaferlez/Simpleverse.Repository</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <EmbedAllSources>true</EmbedAllSources>
