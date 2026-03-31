@@ -54,8 +54,8 @@ namespace Simpleverse.Repository.Db.Entity
 		public virtual Task<int> DeleteAsync(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			=> _entity.DeleteAsync(connection, filterSetup, optionsSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		public async Task<bool> DeleteAsync(IDbConnection connection, TProjection model, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
-			=> await DeleteAsync(connection, new[] { model }, transaction, cancellationToken) > 0;
+		public async Task<bool> DeleteAsync(IDbConnection connection, TProjection model, IDbTransaction transaction = null)
+			=> await DeleteAsync(connection, new[] { model }, transaction) > 0;
 
 		public override sealed Task<int> DeleteAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
 			=> _entity.ExecuteAsyncWithTransaction((conn, tran) => DeleteAsync(conn, models, tran, cancellationToken));

@@ -8,7 +8,7 @@ namespace Simpleverse.Repository.Operations
 	public interface IDelete<T>
 		where T : class
 	{
-		Task<bool> DeleteAsync(T model, CancellationToken cancellationToken = default);
+		Task<bool> DeleteAsync(T model);
 		Task<int> DeleteAsync(IEnumerable<T> models, CancellationToken cancellationToken = default);
 	}
 

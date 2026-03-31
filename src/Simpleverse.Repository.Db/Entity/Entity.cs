@@ -373,11 +373,11 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region ByModel
 
-		public async Task<bool> DeleteAsync(TModel model, CancellationToken cancellationToken = default)
+		public async Task<bool> DeleteAsync(TModel model)
 		{
 			return await Repository.ExecuteAsync((conn) => DeleteAsync(conn, model));
 		}
-		public virtual Task<bool> DeleteAsync(IDbConnection connection, TModel model, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+		public virtual Task<bool> DeleteAsync(IDbConnection connection, TModel model, IDbTransaction transaction = null)
 			=> connection.DeleteAsync(model, transaction: transaction);
 
 		public async Task<int> DeleteAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)

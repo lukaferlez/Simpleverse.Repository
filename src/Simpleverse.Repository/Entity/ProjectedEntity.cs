@@ -48,8 +48,8 @@ namespace Simpleverse.Repository.Entity
 		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
 			=> _entity.DeleteAsync(filterSetup, optionsSetup, cancellationToken);
 
-		public async Task<bool> DeleteAsync(TProjection model, CancellationToken cancellationToken = default)
-			=> await DeleteAsync(new[] { model }, cancellationToken) > 0;
+		public async Task<bool> DeleteAsync(TProjection model)
+			=> await DeleteAsync(new[] { model }) > 0;
 
 		public virtual Task<int> DeleteAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
 			=> _entity.DeleteAsync(models.Select(x => x.Model), cancellationToken);
