@@ -32,7 +32,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 				meta.TableName,
 				meta.Properties,
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -63,7 +64,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (connection.State != ConnectionState.Open)
 				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
-			var insertedTableName = await connection.CreateTemporaryTableFromTable(tableName, columnsToCopy, transaction);
+			var insertedTableName = await connection.CreateTemporaryTableFromTable(tableName, columnsToCopy, transaction, cancellationToken: cancellationToken);
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000 || !(connection is SqlConnection))
 			{
@@ -83,9 +84,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 							";
 
 							await connection.ExecuteAsync(
-								query.ToString(),
-								parameters,
-								transaction: tran
+								new CommandDefinition(query.ToString(), parameters, transaction: tran, cancellationToken: cancellationToken)
 							);
 						}
 
@@ -100,7 +99,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				{
 					sqlBulkCopy?.Invoke(bulkCopy);
 					bulkCopy.DestinationTableName = insertedTableName;
-					await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader());
+					await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader(), cancellationToken);
 				}
 			}
 
@@ -272,7 +271,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 							var outputTarget = await conn.CreateTemporaryTableFromTable(
 								typeMeta.TableName,
 								typeMeta.PropertiesKeyAndExplicit,
-								transaction
+								transaction,
+								cancellationToken: cancellationToken
 							);
 
 							outputSource = outputTarget;
@@ -296,11 +296,13 @@ namespace Simpleverse.Repository.Db.SqlServer
 							);
 						},
 						transaction,
-						commandTimeout
+						commandTimeout,
+						cancellationToken: cancellationToken
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -366,11 +368,13 @@ namespace Simpleverse.Repository.Db.SqlServer
 							);
 						},
 						transaction,
-						commandTimeout
+						commandTimeout,
+						cancellationToken: cancellationToken
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -417,14 +421,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 					";
 
 					return await connection.ExecuteAsync(
-						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: transaction
+						new CommandDefinition(query, parameters, transaction: transaction, commandTimeout: commandTimeout, cancellationToken: cancellationToken)
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 			return result;
 		}
@@ -475,7 +477,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 				typeMeta.TableName,
 				properties,
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 
 			return (insertedTableName, null);
@@ -498,7 +501,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 						entities,
 						properties,
 						transaction: transaction,
-						sqlBulkCopy: sqlBulkCopy
+						sqlBulkCopy: sqlBulkCopy,
+						cancellationToken: cancellationToken
 					);
 
 					return await executor(connection, source, parameters, properties);
