@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Operations
@@ -9,8 +10,8 @@ namespace Simpleverse.Repository.Db.Operations
 	public interface IDeleteDb<T> : IDelete<T>
 		where T : class
 	{
-		Task<bool> DeleteAsync(IDbConnection connection, T model, IDbTransaction transaction = null);
-		Task<int> DeleteAsync(IDbConnection connection, IEnumerable<T> models, IDbTransaction transaction = null);
+		Task<bool> DeleteAsync(IDbConnection connection, T model, IDbTransaction transaction = null, CancellationToken cancellationToken = default);
+		Task<int> DeleteAsync(IDbConnection connection, IEnumerable<T> models, IDbTransaction transaction = null, CancellationToken cancellationToken = default);
 	}
 
 	public interface IDeleteDb<TModel, TFilter, TOptions> : IDeleteDb<TModel>, IDelete<TModel, TFilter, TOptions>
@@ -18,6 +19,6 @@ namespace Simpleverse.Repository.Db.Operations
 		where TFilter : class
 		where TOptions : class
 	{
-		Task<int> DeleteAsync(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null);
+		Task<int> DeleteAsync(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default);
 	}
 }

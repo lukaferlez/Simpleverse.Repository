@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Operations
@@ -15,28 +16,32 @@ namespace Simpleverse.Repository.Db.Operations
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 
 		Task<IEnumerable<T>> ListAsync<T>(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 
 		Task<IEnumerable<TModel>> ListAsync(
 			IDbConnection connection,
 			TFilter filter,
 			TOptions options,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 
 		Task<IEnumerable<T>> ListAsync<T>(
 			IDbConnection connection,
 			TFilter filter,
 			TOptions options,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 	}
 }

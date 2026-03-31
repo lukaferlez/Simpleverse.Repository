@@ -17,7 +17,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			string tableName,
 			IEnumerable<PropertyInfo> columns,
 			IDbTransaction transaction,
-			IEnumerable<string> arbitraryColumns = null
+			IEnumerable<string> arbitraryColumns = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var insertedTableName = $"#tbl_{Guid.NewGuid().ToString().Replace("-", string.Empty)}";
@@ -30,11 +31,14 @@ namespace Simpleverse.Repository.Db.SqlServer
 			}
 
 			await connection.ExecuteAsync(
-				$@"SELECT TOP 0 {columnsString} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
-				UNION ALL
-				SELECT TOP 0 {columnsString} FROM {tableName} WITH(NOLOCK);
-				",
-				transaction: transaction
+				new CommandDefinition(
+					$@"SELECT TOP 0 {columnsString} INTO {insertedTableName} FROM {tableName} WITH(NOLOCK)
+					UNION ALL
+					SELECT TOP 0 {columnsString} FROM {tableName} WITH(NOLOCK);
+					",
+					transaction: transaction,
+					cancellationToken: cancellationToken
+				)
 			);
 			return insertedTableName;
 		}

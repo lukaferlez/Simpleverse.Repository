@@ -1,6 +1,7 @@
 ﻿using Simpleverse.Repository.Operations;
 using System;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Operations
@@ -14,14 +15,16 @@ namespace Simpleverse.Repository.Db.Operations
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 
 		Task<T> GetAsync<T>(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		);
 	}
 }

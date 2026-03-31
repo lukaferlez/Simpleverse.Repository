@@ -1,9 +1,10 @@
-﻿using Simpleverse.Repository.ChangeTracking;
+using Simpleverse.Repository.ChangeTracking;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Entity
@@ -34,67 +35,67 @@ namespace Simpleverse.Repository.Entity
 
 		#region IAdd
 
-		public Task<int> AddAsync(TProjection model)
-			=> AddAsync(new[] { model });
+		public Task<int> AddAsync(TProjection model, CancellationToken cancellationToken = default)
+			=> AddAsync(new[] { model }, cancellationToken);
 
-		public virtual Task<int> AddAsync(IEnumerable<TProjection> models)
-			=> _entity.AddAsync(models.Select(x => x.Model));
+		public virtual Task<int> AddAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
+			=> _entity.AddAsync(models.Select(x => x.Model), cancellationToken);
 
 		#endregion
 
 		#region IDelete
 
-		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> _entity.DeleteAsync(filterSetup, optionsSetup);
+		public virtual Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> _entity.DeleteAsync(filterSetup, optionsSetup, cancellationToken);
 
-		public async Task<bool> DeleteAsync(TProjection model)
-			=> await DeleteAsync(new[] { model }) > 0;
+		public async Task<bool> DeleteAsync(TProjection model, CancellationToken cancellationToken = default)
+			=> await DeleteAsync(new[] { model }, cancellationToken) > 0;
 
-		public virtual Task<int> DeleteAsync(IEnumerable<TProjection> models)
-			=> _entity.DeleteAsync(models.Select(x => x.Model));
+		public virtual Task<int> DeleteAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
+			=> _entity.DeleteAsync(models.Select(x => x.Model), cancellationToken);
 
 		#endregion
 
 		#region IQuery
 
-		public virtual async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
-			 => await GetAsync(filterSetup, null) != null;
+		public virtual async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
+			 => await GetAsync(filterSetup, null, cancellationToken) != null;
 
 		#region Get
 
-		public async Task<TProjection> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		public async Task<TProjection> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
 		{
-			var model = await GetAsync<TModel>(filterSetup, optionsSetup);
+			var model = await GetAsync<TModel>(filterSetup, optionsSetup, cancellationToken);
 			if (model == null)
 				return null;
 
 			return Instance(model);
 		}
 
-		public virtual async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> (await ListAsync<T>(filterSetup, optionsSetup)).FirstOrDefault();
+		public virtual async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> (await ListAsync<T>(filterSetup, optionsSetup, cancellationToken)).FirstOrDefault();
 
 		#endregion
 
 		#region List
 
-		public Task<IEnumerable<TProjection>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> ListAsync(GetFilter(filterSetup), optionsSetup.Get());
+		public Task<IEnumerable<TProjection>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> ListAsync(GetFilter(filterSetup), optionsSetup.Get(), cancellationToken);
 
-		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> ListAsync<T>(GetFilter(filterSetup), optionsSetup.Get());
+		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> ListAsync<T>(GetFilter(filterSetup), optionsSetup.Get(), cancellationToken);
 
-		public virtual async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options)
+		public virtual async Task<IEnumerable<TProjection>> ListAsync(TFilter filter, TOptions options, CancellationToken cancellationToken = default)
 		{
-			var models = await _entity.ListAsync(filter, options);
+			var models = await _entity.ListAsync(filter, options, cancellationToken);
 			if (models == null)
 				return default;
 
 			return models.Select(Instance);
 		}
 
-		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
-			=> _entity.ListAsync<T>(filter, options);
+		public virtual Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options, CancellationToken cancellationToken = default)
+			=> _entity.ListAsync<T>(filter, options, cancellationToken);
 
 		#endregion
 
@@ -104,21 +105,21 @@ namespace Simpleverse.Repository.Entity
 
 		#region Max
 
-		public Task<TResult?> MaxAsync<TResult>(string columnName) where TResult : struct
-			=> MaxAsync<TResult>(columnName, null);
+		public Task<TResult?> MaxAsync<TResult>(string columnName, CancellationToken cancellationToken = default) where TResult : struct
+			=> MaxAsync<TResult>(columnName, null, cancellationToken);
 
-		public virtual Task<TResult?> MaxAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
-			=> _entity.MaxAsync<TResult>(columName, filterSetup);
+		public virtual Task<TResult?> MaxAsync<TResult>(string columName, Action<TFilter> filterSetup, CancellationToken cancellationToken = default) where TResult : struct
+			=> _entity.MaxAsync<TResult>(columName, filterSetup, cancellationToken);
 
 		#endregion
 
 		#region Min
 
-		public Task<TResult?> MinAsync<TResult>(string columnName) where TResult : struct
-			=> MinAsync<TResult>(columnName, null);
+		public Task<TResult?> MinAsync<TResult>(string columnName, CancellationToken cancellationToken = default) where TResult : struct
+			=> MinAsync<TResult>(columnName, null, cancellationToken);
 
-		public virtual Task<TResult?> MinAsync<TResult>(string columName, Action<TFilter> filterSetup) where TResult : struct
-			=> _entity.MinAsync<TResult>(columName, filterSetup);
+		public virtual Task<TResult?> MinAsync<TResult>(string columName, Action<TFilter> filterSetup, CancellationToken cancellationToken = default) where TResult : struct
+			=> _entity.MinAsync<TResult>(columName, filterSetup, cancellationToken);
 
 		#endregion
 
@@ -126,31 +127,31 @@ namespace Simpleverse.Repository.Entity
 
 		#region IDelete
 
-		public virtual Task<(int Deleted, int Added)> ReplaceAsync(Action<TFilter> filterSetup, IEnumerable<TProjection> models)
-			=> _entity.ReplaceAsync(filterSetup, models.Select(x => x.Model));
+		public virtual Task<(int Deleted, int Added)> ReplaceAsync(Action<TFilter> filterSetup, IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
+			=> _entity.ReplaceAsync(filterSetup, models.Select(x => x.Model), cancellationToken);
 
 		#endregion
 
 		#region IUpdate
 
-		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> _entity.UpdateAsync(updateSetup, filterSetup, optionsSetup);
+		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> _entity.UpdateAsync(updateSetup, filterSetup, optionsSetup, cancellationToken);
 
-		public Task<int> UpdateAsync(TProjection model)
-			=> UpdateAsync(new[] { model });
+		public Task<int> UpdateAsync(TProjection model, CancellationToken cancellationToken = default)
+			=> UpdateAsync(new[] { model }, cancellationToken);
 
-		public virtual Task<int> UpdateAsync(IEnumerable<TProjection> models)
-			=> _entity.UpdateAsync(models.Select(x => x.Model));
+		public virtual Task<int> UpdateAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
+			=> _entity.UpdateAsync(models.Select(x => x.Model), cancellationToken);
 
 		#endregion
 
 		#region IUpsert
 
-		public Task<int> UpsertAsync(TProjection model)
-			=> UpsertAsync(new[] { model });
+		public Task<int> UpsertAsync(TProjection model, CancellationToken cancellationToken = default)
+			=> UpsertAsync(new[] { model }, cancellationToken);
 
-		public virtual Task<int> UpsertAsync(IEnumerable<TProjection> models)
-			=> _entity.UpsertAsync(models.Select(x => x.Model));
+		public virtual Task<int> UpsertAsync(IEnumerable<TProjection> models, CancellationToken cancellationToken = default)
+			=> _entity.UpsertAsync(models.Select(x => x.Model), cancellationToken);
 
 		#endregion
 

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
@@ -20,7 +21,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			this IDbConnection connection,
 			IEnumerable<T> entitiesToInsert,
 			SqlTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var meta = TypeMeta.Get<T>();
@@ -51,7 +53,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			string tableName,
 			IEnumerable<PropertyInfo> columnsToCopy,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (!columnsToCopy.Any())
@@ -181,7 +184,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entitiesToGet,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (!entitiesToGet.Any())
@@ -233,7 +237,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			var entityCount = entitiesToInsert.Count();
@@ -316,7 +321,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			entitiesToUpdate = entitiesToUpdate.Where(x => x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty || !(x is SqlMapperExtensions.IProxy));
@@ -382,7 +388,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entitiesToDelete,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			var entityCount = entitiesToDelete.Count();
@@ -427,7 +434,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var entityCount = entities.Count();
@@ -479,7 +487,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<PropertyInfo> properties,
 			Func<IDbConnection, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return await connection.ExecuteAsync(

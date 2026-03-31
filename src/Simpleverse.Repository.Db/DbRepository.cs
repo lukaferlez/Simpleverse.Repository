@@ -1,9 +1,10 @@
-﻿using Dapper;
+using Dapper;
 using Simpleverse.Repository.Db.Meta;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db
@@ -19,61 +20,61 @@ namespace Simpleverse.Repository.Db
 			_connectionFactory = connectionFactory;
 		}
 
-		public Task<IEnumerable<R>> QueryAsync<R>(SqlBuilder.Template query)
-			=> QueryAsync<R>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<R>> QueryAsync<R>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<R>(query.RawSql, query.Parameters, cancellationToken);
 
-		public Task<IEnumerable<dynamic>> QueryAsync(SqlBuilder.Template query)
-			=> QueryAsync(query.RawSql, query.Parameters);
+		public Task<IEnumerable<dynamic>> QueryAsync(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync(query.RawSql, query.Parameters, cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond)>> QueryAsync<TFirst, TSecond>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond)>> QueryAsync<TFirst, TSecond>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond, TThrid)>> QueryAsync<TFirst, TSecond, TThrid>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond, TThrid>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond, TThrid)>> QueryAsync<TFirst, TSecond, TThrid>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond, TThrid>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond, TThrid, TFourth>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond, TThrid, TFourth>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth, TSixth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth, TSixth)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(SqlBuilder.Template query)
-			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(query.RawSql, query.Parameters);
+		public Task<IEnumerable<(TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> QueryAsync<TFirst, TSecond, TThrid, TFourth, TFifth, TSixth, TSeventh>(query.RawSql, query.Parameters, cancellationToken: cancellationToken);
 
-		public virtual async Task<IEnumerable<R>> QueryAsync<R>(string rawSql, object parameters)
+		public virtual async Task<IEnumerable<R>> QueryAsync<R>(string rawSql, object parameters, CancellationToken cancellationToken = default)
 		{
-			return await ExecuteAsync((conn) => conn.QueryAsync<R>(rawSql, param: parameters));
+			return await ExecuteAsync((conn) => conn.QueryAsync<R>(new CommandDefinition(rawSql, parameters, cancellationToken: cancellationToken)));
 		}
 
-		public virtual async Task<IEnumerable<dynamic>> QueryAsync(string rawSql, object parameters)
+		public virtual async Task<IEnumerable<dynamic>> QueryAsync(string rawSql, object parameters, CancellationToken cancellationToken = default)
 		{
-			return await ExecuteAsync((conn) => conn.QueryAsync(rawSql, param: parameters));
+			return await ExecuteAsync((conn) => conn.QueryAsync(new CommandDefinition(rawSql, parameters, cancellationToken: cancellationToken)));
 		}
 
-		public Task<IEnumerable<(TFirst, TSecond)>> QueryAsync<TFirst, TSecond>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond)>> QueryAsync<TFirst, TSecond>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
-		public Task<IEnumerable<(TFirst, TSecond, TThird)>> QueryAsync<TFirst, TSecond, TThird>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond, TThird)>> QueryAsync<TFirst, TSecond, TThird>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
-		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth)>> QueryAsync<TFirst, TSecond, TThird, TFourth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth)>> QueryAsync<TFirst, TSecond, TThird, TFourth>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
-		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
-		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
-		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(string rawSql, object parameters = null)
-			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(rawSql, param: parameters));
+		public Task<IEnumerable<(TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh)>> QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(string rawSql, object parameters = null, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.QueryAsync<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh>(rawSql, param: parameters, cancellationToken: cancellationToken));
 
 
-		public Task<int> ExecuteAsync(SqlBuilder.Template query)
-			=> ExecuteAsync((conn) => conn.ExecuteAsync(query));
+		public Task<int> ExecuteAsync(SqlBuilder.Template query, CancellationToken cancellationToken = default)
+			=> ExecuteAsync((conn) => conn.ExecuteAsync(query, cancellationToken: cancellationToken));
 
 		public async Task<R> ExecuteAsync<R>(Func<IDbConnection, Task<R>> function)
 		{

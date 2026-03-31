@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
@@ -21,7 +22,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			Action<int, IEnumerable<T>> map,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
-			IEnumerable<string> outputResultsSplitConditions = null
+			IEnumerable<string> outputResultsSplitConditions = null,
+			CancellationToken cancellationToken = default
 		)
 			where T : class
 		{
@@ -29,10 +31,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				async (conn, tran) =>
 				{
 					var result = await conn.ExecuteAsync(
-						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: tran
+						new CommandDefinition(query, parameters, transaction: tran, commandTimeout: commandTimeout, cancellationToken: cancellationToken)
 					);
 
 					if (mapGeneratedValues)
@@ -63,10 +62,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 						);
 
 						var outputs = await conn.QueryMultipleAsync(
-							outputSelectQuery,
-							param: parameters,
-							transaction: tran,
-							commandTimeout: commandTimeout
+							new CommandDefinition(outputSelectQuery, parameters, transaction: tran, commandTimeout: commandTimeout, cancellationToken: cancellationToken)
 						);
 
 						outputResultsSplitConditions.ForEach(
