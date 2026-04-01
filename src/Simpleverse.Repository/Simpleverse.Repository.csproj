@@ -6,17 +6,17 @@
     <Authors>Luka Ferlež</Authors>
     <Company />
     <Product>Simpleverse.Repository</Product>
-    <Copyright>2023 Luka Ferlež</Copyright>
+    <Copyright>2026 Luka Ferlež</Copyright>
     <PackageLicenseExpression></PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/lukaferlez/Simpleverse.Repository</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>Repository</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.1.11</Version>
+    <Version>1.1.12</Version>
     <Description>Base repository elements.</Description>
-    <AssemblyVersion>1.1.11.0</AssemblyVersion>
-    <FileVersion>1.1.11.0</FileVersion>
+    <AssemblyVersion>1.1.12.0</AssemblyVersion>
+    <FileVersion>1.1.12.0</FileVersion>
     <RepositoryUrl>https://github.com/lukaferlez/Simpleverse.Repository</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
