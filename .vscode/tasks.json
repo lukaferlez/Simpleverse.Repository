@@ -7,7 +7,7 @@
 			"type": "process",
 			"args": [
 				"build",
-				"${workspaceFolder}/Simpleverse.Dapper.Test/Simpleverse.Dapper.Test.csproj",
+				"${workspaceFolder}/src/Simpleverse.Repository.Db.Test/Simpleverse.Repository.Db.Test.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary"
 			],
@@ -19,7 +19,7 @@
 			"type": "process",
 			"args": [
 				"publish",
-				"${workspaceFolder}/Simpleverse.Dapper.Test/Simpleverse.Dapper.Test.csproj",
+				"${workspaceFolder}/src/Simpleverse.Repository.Db.Test/Simpleverse.Repository.Db.Test.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary"
 			],
@@ -33,7 +33,7 @@
 				"watch",
 				"run",
 				"--project",
-				"${workspaceFolder}/Simpleverse.Dapper.Test/Simpleverse.Dapper.Test.csproj"
+				"${workspaceFolder}/Simpleverse.Repository.Test/Simpleverse.Repository.Test.csproj"
 			],
 			"problemMatcher": "$msCompile"
 		}
