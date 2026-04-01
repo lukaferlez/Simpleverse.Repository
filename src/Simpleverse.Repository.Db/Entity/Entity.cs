@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Dapper.Contrib.Extensions;
 using Simpleverse.Repository.ChangeTracking;
 using Simpleverse.Repository.Db.Extensions.Dapper;
@@ -11,6 +11,7 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Entity
@@ -36,77 +37,79 @@ namespace Simpleverse.Repository.Db.Entity
 		#region Get
 
 		public async Task<TModel> GetAsync(dynamic id)
-		{
-			return await Repository.ExecuteAsync<TModel>((conn) => GetAsync(conn, id));
-		}
+			=> await Repository.ExecuteAsync<TModel>((conn) => GetAsync(conn, id));
+
 		public virtual Task<TModel> GetAsync(IDbConnection connection, dynamic id, IDbTransaction transaction = null)
 			=> SqlMapperExtensions.GetAsync<TModel>(connection, id, transaction: transaction);
 
-		public Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> GetAsync<TModel>(filterSetup, optionsSetup);
+		public Task<TModel> GetAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> GetAsync<TModel>(filterSetup, optionsSetup, cancellationToken);
 		public Task<TModel> GetAsync(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
-			=> GetAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction);
+			=> GetAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		public async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> (await ListAsync<T>(filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); })).FirstOrDefault();
-		public async Task<T> GetAsync<T>(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null)
-			=> (await ListAsync<T>(connection, filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); }, transaction: transaction)).FirstOrDefault();
+		public async Task<T> GetAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> (await ListAsync<T>(filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); }, cancellationToken)).FirstOrDefault();
+		public async Task<T> GetAsync<T>(IDbConnection connection, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+			=> (await ListAsync<T>(connection, filterSetup, options => { options.Take = 1; optionsSetup?.Invoke(options); }, transaction: transaction, cancellationToken: cancellationToken)).FirstOrDefault();
 
 		#endregion
 
 		#region Exists
 
-		public async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null)
-			=> await GetAsync(filterSetup: filterSetup) != null;
-		public async Task<bool> ExistsAsync(IDbConnection connection, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
-			=> await GetAsync(connection, filterSetup: filterSetup, transaction: transaction) != null;
+		public async Task<bool> ExistsAsync(Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
+			=> await GetAsync(filterSetup: filterSetup, cancellationToken: cancellationToken) != null;
+		public async Task<bool> ExistsAsync(IDbConnection connection, Action<TFilter> filterSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+			=> await GetAsync(connection, filterSetup: filterSetup, transaction: transaction, cancellationToken: cancellationToken) != null;
 
 		#endregion
 
 		#region List
 
-		public Task<IEnumerable<TModel>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> ListAsync<TModel>(filterSetup, optionsSetup);
+		public Task<IEnumerable<TModel>> ListAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> ListAsync<TModel>(filterSetup, optionsSetup, cancellationToken);
 		public Task<IEnumerable<TModel>> ListAsync(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
-			=> ListAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction);
+			=> ListAsync<TModel>(connection, filterSetup, optionsSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		public Task<IEnumerable<T>> ListAsync<T>(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
 		{
 			var filter = GetFilter(filterSetup);
 			var options = optionsSetup.Get();
-			return ListAsync<T>(filter, options);
+			return ListAsync<T>(filter, options, cancellationToken);
 		}
 		public Task<IEnumerable<T>> ListAsync<T>(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var filter = GetFilter(filterSetup);
 			var options = optionsSetup.Get();
-			return ListAsync<T>(connection, filter, options, transaction: transaction);
+			return ListAsync<T>(connection, filter, options, transaction: transaction, cancellationToken: cancellationToken);
 		}
 
-		public Task<IEnumerable<TModel>> ListAsync(TFilter filter, TOptions options)
-			=> ListAsync<TModel>(filter, options);
-		public Task<IEnumerable<TModel>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
-			=> ListAsync<TModel>(connection, filter, options, transaction);
+		public Task<IEnumerable<TModel>> ListAsync(TFilter filter, TOptions options, CancellationToken cancellationToken = default)
+			=> ListAsync<TModel>(filter, options, cancellationToken);
+		public Task<IEnumerable<TModel>> ListAsync(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
+			=> ListAsync<TModel>(connection, filter, options, transaction, cancellationToken);
 
-		public Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options)
-			=> Repository.ExecuteAsync((conn) => ListAsync<T>(conn, filter, options));
+		public Task<IEnumerable<T>> ListAsync<T>(TFilter filter, TOptions options, CancellationToken cancellationToken = default)
+			=> Repository.ExecuteAsync((conn) => ListAsync<T>(conn, filter, options, cancellationToken: cancellationToken));
 
-		public virtual Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null)
+		public virtual Task<IEnumerable<T>> ListAsync<T>(IDbConnection connection, TFilter filter, TOptions options, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 		{
 			var builder = Source.AsQuery();
 
@@ -123,12 +126,12 @@ namespace Simpleverse.Repository.Db.Entity
 
 				return (Task<IEnumerable<T>>)
 					typeof(DbConnectionExtensions)
-					.GetMethod(nameof(DbConnectionExtensions.QueryAsync), typeArgumentsCount, new[] { typeof(IDbConnection), query.GetType(), typeof(IDbTransaction) })
+					.GetMethod(nameof(DbConnectionExtensions.QueryAsync), typeArgumentsCount, new[] { typeof(IDbConnection), query.GetType(), typeof(IDbTransaction), typeof(CancellationToken) })
 					.MakeGenericMethod(type.GenericTypeArguments)
-					.Invoke(null, new object[] { connection, query, transaction });
+					.Invoke(null, new object[] { connection, query, transaction, cancellationToken });
 			}
 
-			return connection.QueryAsync<T>(query, tran: transaction);
+			return connection.QueryAsync<T>(query, tran: transaction, cancellationToken: cancellationToken);
 		}
 
 		protected virtual void SelectQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
@@ -154,19 +157,20 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region Add
 
-		public Task<int> AddAsync(TModel model)
-			=> AddAsync(new[] { model });
+		public Task<int> AddAsync(TModel model, CancellationToken cancellationToken = default)
+			=> AddAsync(new[] { model }, cancellationToken);
 
-		public Task<int> AddAsync(IEnumerable<TModel> models)
-			=> AddAsync(models, outputMap: OutputMapper.MapOnce);
+		public Task<int> AddAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)
+			=> AddAsync(models, outputMap: OutputMapper.MapOnce, cancellationToken: cancellationToken);
 
 		public async Task<int> AddAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return await Repository.ExecuteAsync(
-				(conn) => AddAsync(conn, models, outputMap: outputMap)
+				(conn) => AddAsync(conn, models, outputMap: outputMap, cancellationToken: cancellationToken)
 			);
 		}
 
@@ -174,7 +178,8 @@ namespace Simpleverse.Repository.Db.Entity
 			IDbConnection connection,
 			IEnumerable<TModel> models,
 			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (Repository is SqlRepository)
@@ -182,7 +187,8 @@ namespace Simpleverse.Repository.Db.Entity
 				return connection.InsertBulkAsync(
 					models,
 					transaction: transaction,
-					outputMap: outputMap
+					outputMap: outputMap,
+					cancellationToken: cancellationToken
 				);
 			}
 
@@ -198,19 +204,20 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region ByModel
 
-		public Task<int> UpdateAsync(TModel model)
-			=> UpdateAsync(new[] { model });
+		public Task<int> UpdateAsync(TModel model, CancellationToken cancellationToken = default)
+			=> UpdateAsync(new[] { model }, cancellationToken);
 
-		public Task<int> UpdateAsync(IEnumerable<TModel> models)
-			=> UpdateAsync(models, outputMap: OutputMapper.MapOnce);
+		public Task<int> UpdateAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)
+			=> UpdateAsync(models, outputMap: OutputMapper.MapOnce, cancellationToken: cancellationToken);
 
 		public async Task<int> UpdateAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return await Repository.ExecuteAsync(
-				(conn) => UpdateAsync(conn, models, outputMap: outputMap)
+				(conn) => UpdateAsync(conn, models, outputMap: outputMap, cancellationToken: cancellationToken)
 			);
 		}
 
@@ -218,7 +225,8 @@ namespace Simpleverse.Repository.Db.Entity
 			IDbConnection connection,
 			IEnumerable<TModel> models,
 			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (Repository is SqlRepository)
@@ -226,7 +234,8 @@ namespace Simpleverse.Repository.Db.Entity
 				return await connection.UpdateBulkAsync(
 					models,
 					transaction: transaction,
-					outputMap: outputMap
+					outputMap: outputMap,
+					cancellationToken: cancellationToken
 				);
 			}
 
@@ -243,12 +252,12 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#endregion
 
-		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
+		public virtual Task<int> UpdateAsync(Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
 			=> Repository.ExecuteAsync(
-				(conn) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup)
+				(conn) => UpdateAsync(conn, updateSetup, filterSetup, optionsSetup, cancellationToken: cancellationToken)
 			);
 
-		public virtual Task<int> UpdateAsync(IDbConnection connection, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null)
+		public virtual Task<int> UpdateAsync(IDbConnection connection, Action<TUpdate> updateSetup, Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 		{
 			var update = GetUpdate(updateSetup);
 			var filter = GetFilter(filterSetup);
@@ -258,7 +267,7 @@ namespace Simpleverse.Repository.Db.Entity
 			UpdateQuery(builder, update, filter, options);
 
 			var query = UpdateTemplate(builder, update, filter, options);
-			return connection.ExecuteAsync(query, tran: transaction);
+			return connection.ExecuteAsync(query, tran: transaction, cancellationToken: cancellationToken);
 		}
 
 		protected virtual void UpdateQuery(QueryBuilder<TModel> builder, TUpdate update, TFilter filter, TOptions options)
@@ -327,19 +336,20 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region Upsert
 
-		public Task<int> UpsertAsync(TModel model)
-			=> UpsertAsync(new[] { model });
+		public Task<int> UpsertAsync(TModel model, CancellationToken cancellationToken = default)
+			=> UpsertAsync(new[] { model }, cancellationToken);
 
-		public Task<int> UpsertAsync(IEnumerable<TModel> models)
-			=> UpsertAsync(models, outputMap: OutputMapper.MapOnce);
+		public Task<int> UpsertAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)
+			=> UpsertAsync(models, outputMap: OutputMapper.MapOnce, cancellationToken: cancellationToken);
 
 		public async Task<int> UpsertAsync(
 			IEnumerable<TModel> models,
-			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap
+			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return await Repository.ExecuteAsync(
-				(conn) => UpsertAsync(conn, models, outputMap: outputMap)
+				(conn) => UpsertAsync(conn, models, outputMap: outputMap, cancellationToken: cancellationToken)
 			);
 		}
 
@@ -347,13 +357,14 @@ namespace Simpleverse.Repository.Db.Entity
 			IDbConnection connection,
 			IEnumerable<TModel> models,
 			Action<IEnumerable<TModel>, IEnumerable<TModel>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (!(Repository is SqlRepository))
 				throw new NotSupportedException("Upsert is not supported on non-SQL repository connections.");
 
-			return connection.UpsertBulkAsync(models, transaction: transaction, outputMap: outputMap);
+			return connection.UpsertBulkAsync(models, transaction: transaction, outputMap: outputMap, cancellationToken: cancellationToken);
 		}
 
 		#endregion
@@ -369,19 +380,20 @@ namespace Simpleverse.Repository.Db.Entity
 		public virtual Task<bool> DeleteAsync(IDbConnection connection, TModel model, IDbTransaction transaction = null)
 			=> connection.DeleteAsync(model, transaction: transaction);
 
-		public async Task<int> DeleteAsync(IEnumerable<TModel> models)
+		public async Task<int> DeleteAsync(IEnumerable<TModel> models, CancellationToken cancellationToken = default)
 		{
 			return await Repository.ExecuteAsync(
-				(conn) => DeleteAsync(conn, models)
+				(conn) => DeleteAsync(conn, models, cancellationToken: cancellationToken)
 			);
 		}
-		public virtual async Task<int> DeleteAsync(IDbConnection connection, IEnumerable<TModel> models, IDbTransaction transaction = null)
+		public virtual async Task<int> DeleteAsync(IDbConnection connection, IEnumerable<TModel> models, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 		{
 			if (Repository is SqlRepository)
 			{
 				return await connection.DeleteBulkAsync(
 					models,
-					transaction: transaction
+					transaction: transaction,
+					cancellationToken: cancellationToken
 				);
 			}
 
@@ -394,13 +406,14 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#endregion
 
-		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null)
-			=> Repository.ExecuteAsync((conn) => DeleteAsync(conn, filterSetup, optionsSetup));
+		public Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default)
+			=> Repository.ExecuteAsync((conn) => DeleteAsync(conn, filterSetup, optionsSetup, cancellationToken: cancellationToken));
 		public virtual Task<int> DeleteAsync(
 			IDbConnection connection,
 			Action<TFilter> filterSetup = null,
 			Action<TOptions> optionsSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var filter = GetFilter(filterSetup);
@@ -409,7 +422,7 @@ namespace Simpleverse.Repository.Db.Entity
 			DeleteQuery(builder, filter, options);
 
 			var query = DeleteTemplate(builder, options);
-			return connection.ExecuteAsync(query, tran: transaction);
+			return connection.ExecuteAsync(query, tran: transaction, cancellationToken: cancellationToken);
 		}
 
 		protected virtual void DeleteQuery(QueryBuilder<TModel> builder, TFilter filter, TOptions options)
@@ -424,38 +437,39 @@ namespace Simpleverse.Repository.Db.Entity
 
 		#region IAggregate
 
-		#region Min		
+		#region Min
 
-		public Task<TResult?> MinAsync<TResult>(string columnName)
+		public Task<TResult?> MinAsync<TResult>(string columnName, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnName), null);
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
+			=> MinAsync<TResult>(Source.Column(columnName), null, cancellationToken);
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction, cancellationToken: cancellationToken);
 
-		public Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
+		public Task<TResult?> MinAsync<TResult>(string columnName, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnName), filterSetup);
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			=> MinAsync<TResult>(Source.Column(columnName), filterSetup, cancellationToken);
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		public Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null)
+		public Task<TResult?> MinAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(Source.Column(columnExpression), filterSetup);
-		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			=> MinAsync<TResult>(Source.Column(columnExpression), filterSetup, cancellationToken);
+		public Task<TResult?> MinAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MinAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction: transaction);
+			=> MinAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		protected virtual Task<TResult?> MinAsync<TResult>(Selector column, Action<TFilter> filterSetup = null)
+		protected virtual Task<TResult?> MinAsync<TResult>(Selector column, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => MinAsync<TResult>(conn, column, filterSetup, tran));
+			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => MinAsync<TResult>(conn, column, filterSetup, tran, cancellationToken));
 
 		public virtual Task<TResult?> MinAsync<TResult>(
 			IDbConnection connection,
 			Selector column,
 			Action<TFilter> filterSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 			where TResult : struct
 		{
@@ -472,42 +486,43 @@ namespace Simpleverse.Repository.Db.Entity
 			");
 
 			Filter(builder, GetFilter(filterSetup));
-			return Repository.ExecuteAsync((conn) => conn.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters));
+			return Repository.ExecuteAsync((conn) => conn.QueryFirstOrDefaultAsync<TResult?>(new CommandDefinition(query.RawSql, query.Parameters, cancellationToken: cancellationToken)));
 		}
 
 		#endregion
 
 		#region Max
 
-		public Task<TResult?> MaxAsync<TResult>(string columnName)
+		public Task<TResult?> MaxAsync<TResult>(string columnName, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnName), null);
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null)
+			=> MaxAsync<TResult>(Source.Column(columnName), null, cancellationToken);
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction);
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), null, transaction: transaction, cancellationToken: cancellationToken);
 
-		public Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup = null)
+		public Task<TResult?> MaxAsync<TResult>(string columnName, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnName), filterSetup);
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			=> MaxAsync<TResult>(Source.Column(columnName), filterSetup, cancellationToken);
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, string columnName, Action<TFilter> filterSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction);
+			=> MaxAsync<TResult>(connection, Source.Column(columnName), filterSetup, transaction: transaction, cancellationToken: cancellationToken);
 
-		public Task<TResult?> MaxAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null)
+		public Task<TResult?> MaxAsync<TResult>(Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(Source.Column(columnExpression), filterSetup);
-		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null)
+			=> MaxAsync<TResult>(Source.Column(columnExpression), filterSetup, cancellationToken);
+		public Task<TResult?> MaxAsync<TResult>(IDbConnection connection, Expression<Func<TModel, TResult>> columnExpression, Action<TFilter> filterSetup = null, IDbTransaction transaction = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction);
+			=> MaxAsync<TResult>(connection, Source.Column(columnExpression), filterSetup, transaction, cancellationToken);
 
-		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column, Action<TFilter> filterSetup = null)
+		protected virtual Task<TResult?> MaxAsync<TResult>(Selector column, Action<TFilter> filterSetup = null, CancellationToken cancellationToken = default)
 			where TResult : struct
-			=> Repository.ExecuteAsync((conn) => MaxAsync<TResult>(conn, column));
+			=> Repository.ExecuteAsync((conn) => MaxAsync<TResult>(conn, column, cancellationToken: cancellationToken));
 		public virtual Task<TResult?> MaxAsync<TResult>(
 			IDbConnection connection,
 			Selector column,
 			Action<TFilter> filterSetup = null,
-			IDbTransaction transaction = null
+			IDbTransaction transaction = null,
+			CancellationToken cancellationToken = default
 		)
 			where TResult : struct
 		{
@@ -525,7 +540,7 @@ namespace Simpleverse.Repository.Db.Entity
 					/**where**/
 			"
 			);
-			return connection.QueryFirstOrDefaultAsync<TResult?>(query.RawSql, query.Parameters, transaction: transaction);
+			return connection.QueryFirstOrDefaultAsync<TResult?>(new CommandDefinition(query.RawSql, query.Parameters, transaction: transaction, cancellationToken: cancellationToken));
 		}
 
 		#endregion
@@ -536,15 +551,17 @@ namespace Simpleverse.Repository.Db.Entity
 
 		public Task<(int Deleted, int Added)> ReplaceAsync(
 			Action<TFilter> filterSetup,
-			IEnumerable<TModel> models
+			IEnumerable<TModel> models,
+			CancellationToken cancellationToken = default
 		)
-			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => ReplaceAsync(conn, tran, filterSetup, models));
+			=> Repository.ExecuteAsyncWithTransaction((conn, tran) => ReplaceAsync(conn, tran, filterSetup, models, cancellationToken));
 
 		public virtual Task<(int Deleted, int Added)> ReplaceAsync(
 			IDbConnection conn,
 			IDbTransaction tran,
 			Action<TFilter> filterSetup,
-			IEnumerable<TModel> models
+			IEnumerable<TModel> models,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return conn.ExecuteAsyncWithTransaction(
@@ -553,7 +570,8 @@ namespace Simpleverse.Repository.Db.Entity
 					var deleted = await DeleteAsync(
 						conn,
 						filterSetup,
-						transaction: tran
+						transaction: tran,
+						cancellationToken: cancellationToken
 					);
 
 					if (models == null)
@@ -563,7 +581,8 @@ namespace Simpleverse.Repository.Db.Entity
 						conn,
 						models,
 						outputMap: OutputMapper.Map,
-						transaction: tran
+						transaction: tran,
+						cancellationToken: cancellationToken
 					);
 
 					return (deleted, added);

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.Operations
@@ -14,7 +15,8 @@ namespace Simpleverse.Repository.Db.Operations
 			IDbConnection conn,
 			IDbTransaction tran,
 			Action<TFilter> filterSetup,
-			IEnumerable<TModel> models
+			IEnumerable<TModel> models,
+			CancellationToken cancellationToken = default
 		);
 	}
 }

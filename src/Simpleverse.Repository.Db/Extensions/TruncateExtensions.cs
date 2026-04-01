@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Simpleverse.Repository.Db.Meta;
@@ -15,22 +16,24 @@ namespace Simpleverse.Repository.Db.Extensions
 		}
 
 		public static async Task<int> TruncateAsync<T>(
-			this IDbConnection connection
+			this IDbConnection connection,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var typeMeta = TypeMeta.Get<T>();
-			return await connection.TruncateAsync(typeMeta.TableName);
+			return await connection.TruncateAsync(typeMeta.TableName, cancellationToken);
 		}
 
 		public static async Task<int> TruncateAsync(
 			this IDbConnection connection,
-			string tableName
+			string tableName,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var wasClosed = connection.State == ConnectionState.Closed;
 			if (wasClosed) connection.Open();
 
-			var result = await connection.ExecuteAsync($"TRUNCATE TABLE {tableName};");
+			var result = await connection.ExecuteAsync(new CommandDefinition($"TRUNCATE TABLE {tableName};", cancellationToken: cancellationToken));
 
 			if (wasClosed) connection.Close();
 

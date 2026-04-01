@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer
@@ -20,7 +21,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			this IDbConnection connection,
 			IEnumerable<T> entitiesToInsert,
 			SqlTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var meta = TypeMeta.Get<T>();
@@ -30,7 +32,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 				meta.TableName,
 				meta.Properties,
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -51,7 +54,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			string tableName,
 			IEnumerable<PropertyInfo> columnsToCopy,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (!columnsToCopy.Any())
@@ -60,7 +64,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 			if (connection.State != ConnectionState.Open)
 				throw new ArgumentException("Connection is required to be opened by the calling code.");
 
-			var insertedTableName = await connection.CreateTemporaryTableFromTable(tableName, columnsToCopy, transaction);
+			var insertedTableName = await connection.CreateTemporaryTableFromTable(tableName, columnsToCopy, transaction, cancellationToken: cancellationToken);
 
 			if (columnsToCopy.Count() * entitiesToInsert.Count() < 2000 || !(connection is SqlConnection))
 			{
@@ -80,9 +84,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 							";
 
 							await connection.ExecuteAsync(
-								query.ToString(),
-								parameters,
-								transaction: tran
+								new CommandDefinition(query.ToString(), parameters, transaction: tran, cancellationToken: cancellationToken)
 							);
 						}
 
@@ -97,7 +99,7 @@ namespace Simpleverse.Repository.Db.SqlServer
 				{
 					sqlBulkCopy?.Invoke(bulkCopy);
 					bulkCopy.DestinationTableName = insertedTableName;
-					await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader());
+					await bulkCopy.WriteToServerAsync(ToDataTable(entitiesToInsert, columnsToCopy).CreateDataReader(), cancellationToken);
 				}
 			}
 
@@ -181,7 +183,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entitiesToGet,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			if (!entitiesToGet.Any())
@@ -233,7 +236,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			var entityCount = entitiesToInsert.Count();
@@ -267,7 +271,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 							var outputTarget = await conn.CreateTemporaryTableFromTable(
 								typeMeta.TableName,
 								typeMeta.PropertiesKeyAndExplicit,
-								transaction
+								transaction,
+								cancellationToken: cancellationToken
 							);
 
 							outputSource = outputTarget;
@@ -291,11 +296,13 @@ namespace Simpleverse.Repository.Db.SqlServer
 							);
 						},
 						transaction,
-						commandTimeout
+						commandTimeout,
+						cancellationToken: cancellationToken
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -316,7 +323,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			entitiesToUpdate = entitiesToUpdate.Where(x => x is SqlMapperExtensions.IProxy proxy && !proxy.IsDirty || !(x is SqlMapperExtensions.IProxy));
@@ -360,11 +368,13 @@ namespace Simpleverse.Repository.Db.SqlServer
 							);
 						},
 						transaction,
-						commandTimeout
+						commandTimeout,
+						cancellationToken: cancellationToken
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -382,7 +392,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entitiesToDelete,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			var entityCount = entitiesToDelete.Count();
@@ -410,14 +421,12 @@ namespace Simpleverse.Repository.Db.SqlServer
 					";
 
 					return await connection.ExecuteAsync(
-						query,
-						param: parameters,
-						commandTimeout: commandTimeout,
-						transaction: transaction
+						new CommandDefinition(query, parameters, transaction: transaction, commandTimeout: commandTimeout, cancellationToken: cancellationToken)
 					);
 				},
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 			return result;
 		}
@@ -427,7 +436,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<T> entities,
 			IEnumerable<PropertyInfo> properties,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			var entityCount = entities.Count();
@@ -467,7 +477,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 				typeMeta.TableName,
 				properties,
 				transaction: transaction,
-				sqlBulkCopy: sqlBulkCopy
+				sqlBulkCopy: sqlBulkCopy,
+				cancellationToken: cancellationToken
 			);
 
 			return (insertedTableName, null);
@@ -479,7 +490,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 			IEnumerable<PropertyInfo> properties,
 			Func<IDbConnection, string, DynamicParameters, IEnumerable<PropertyInfo>, Task<R>> executor,
 			IDbTransaction transaction = null,
-			Action<SqlBulkCopy> sqlBulkCopy = null
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			CancellationToken cancellationToken = default
 		)
 		{
 			return await connection.ExecuteAsync(
@@ -489,7 +501,8 @@ namespace Simpleverse.Repository.Db.SqlServer
 						entities,
 						properties,
 						transaction: transaction,
-						sqlBulkCopy: sqlBulkCopy
+						sqlBulkCopy: sqlBulkCopy,
+						cancellationToken: cancellationToken
 					);
 
 					return await executor(connection, source, parameters, properties);

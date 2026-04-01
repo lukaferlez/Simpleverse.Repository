@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Operations
@@ -8,7 +9,7 @@ namespace Simpleverse.Repository.Operations
 		where T : class
 	{
 		Task<bool> DeleteAsync(T model);
-		Task<int> DeleteAsync(IEnumerable<T> models);
+		Task<int> DeleteAsync(IEnumerable<T> models, CancellationToken cancellationToken = default);
 	}
 
 	public interface IDelete<TModel, TFilter, TOptions> : IDelete<TModel>
@@ -16,6 +17,6 @@ namespace Simpleverse.Repository.Operations
 		where TFilter : class
 		where TOptions : class
 	{
-		Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null);
+		Task<int> DeleteAsync(Action<TFilter> filterSetup = null, Action<TOptions> optionsSetup = null, CancellationToken cancellationToken = default);
 	}
 }

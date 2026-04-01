@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Operations
@@ -10,7 +11,8 @@ namespace Simpleverse.Repository.Operations
 	{
 		Task<(int Deleted, int Added)> ReplaceAsync(
 			Action<TFilter> filterSetup,
-			IEnumerable<TModel> models
+			IEnumerable<TModel> models,
+			CancellationToken cancellationToken = default
 		);
 	}
 }

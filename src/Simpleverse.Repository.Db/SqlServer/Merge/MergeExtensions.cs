@@ -6,6 +6,7 @@ using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Simpleverse.Repository.Db.SqlServer.Merge
@@ -18,7 +19,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		)
 			where T : class
 		{
@@ -27,7 +29,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				transaction: transaction,
 				commandTimeout: commandTimeout,
 				key: key,
-				outputMap: outputMap
+				outputMap: outputMap,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -40,7 +43,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
 			Action<MergeActionOptions<T>> notMatchedBySource = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		)
 			where T : class
 		{
@@ -52,7 +56,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				matched: matched,
 				notMatchedByTarget: notMatchedByTarget,
 				notMatchedBySource: notMatchedBySource,
-				outputMap: outputMap
+				outputMap: outputMap,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -72,7 +77,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			return await connection.MergeBulkAsync(
@@ -83,7 +89,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				key: key,
 				matched: options => options.Update(),
 				notMatchedByTarget: options => options.Insert(),
-				outputMap: outputMap
+				outputMap: outputMap,
+				cancellationToken: cancellationToken
 			);
 		}
 
@@ -106,7 +113,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			Action<MergeActionOptions<T>> matched = null,
 			Action<MergeActionOptions<T>> notMatchedByTarget = null,
 			Action<MergeActionOptions<T>> notMatchedBySource = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
 		) where T : class
 		{
 			if (entitiesToMerge == null)
@@ -181,7 +189,8 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 						},
 						transaction: transaction,
 						commandTimeout: commandTimeout,
-						outputResultsSplitConditions: new[] { "[ACTION] = 'INSERT'", "[ACTION] = 'UPDATE'" }
+						outputResultsSplitConditions: new[] { "[ACTION] = 'INSERT'", "[ACTION] = 'UPDATE'" },
+						cancellationToken: cancellationToken
 					);
 				},
 				transaction: transaction,
