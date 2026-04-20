@@ -24,9 +24,11 @@ namespace Simpleverse.Repository.Db.Meta
 		public IList<PropertyInfo> PropertiesExceptKeyComputedAndImmutable { get; }
 		public bool IsProjection { get; }
 
-		public TypeMeta(Type type)
+		public TypeMeta(Type type) : this(type, null) { }
+
+		public TypeMeta(Type type, string tableName)
 		{
-			TableName = SqlMapperWrapper.GetTableName(type);
+			TableName = string.IsNullOrEmpty(tableName) ? SqlMapperWrapper.GetTableName(type) : tableName;
 			Properties = SqlMapperWrapper.TypePropertiesCache(type);
 			PropertiesKey = SqlMapperWrapper.KeyPropertiesCache(type);
 			PropertiesComputed = SqlMapperWrapper.ComputedPropertiesCache(type);
