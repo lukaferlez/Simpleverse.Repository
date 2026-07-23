@@ -105,9 +105,20 @@ var repository = new SqlRepository(() => new SqlConnection(connectionString));
 `Entity<TModel, TFilter, TOptions>` (or the 4-generic overload with a separate update model)
 implements list/get/exists/add/update/upsert/delete against a `Table<T>`.
 
-For a quick start, a separate filter class is not necessary. As long as the model has
-`virtual` properties for the columns you want to filter on, the base `Entity.Filter`
-implementation maps them automatically, so the model itself can be used as `TFilter`:
+For a quick start, declaring a dedicated entity class is not necessary – the simplest form
+is to instantiate `Entity<T>` directly:
+
+```csharp
+using Simpleverse.Repository.Db;
+using Simpleverse.Repository.Db.Entity;
+
+var entity = new Entity<Identity>(repository, new Table<Identity>("I"));
+```
+
+A dedicated class such as `IdentityEntity` below is purely a convenience once type names
+start getting long (e.g. `Entity<Identity, IdentityQueryFilter, DbQueryOptions>` once a
+custom filter is introduced), or once behaviour needs to be extended beyond what the base
+`Entity` class offers:
 
 ```csharp
 using Simpleverse.Repository.Db;

@@ -37,17 +37,10 @@ public class Identity
     public string Name { get; set; }
 }
 
-// 3. Define an entity and query it
-// A separate filter class isn't necessary for a quick start – the base Entity.Filter
-// maps "virtual" model properties automatically, so the model itself can be used as
-// the filter type.
-public class IdentityEntity : Entity<Identity, DbQueryOptions>
-{
-    public IdentityEntity(DbRepository repository)
-        : base(repository, new Table<Identity>("I")) { }
-}
-
-var entity = new IdentityEntity(repository);
+// 3. Query it – declaring a dedicated entity class isn't necessary for a quick
+// start. The base Entity.Filter maps "virtual" model properties automatically,
+// so the model itself can be used as the filter type.
+var entity = new Entity<Identity>(repository, new Table<Identity>("I"));
 var results = await entity.ListAsync(filter => filter.Name = "John");
 ```
 
