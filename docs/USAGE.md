@@ -20,6 +20,16 @@ dotnet add package Simpleverse.Repository.Db
 
 ## Core concepts
 
+- Repositories are agnostic to the underlying datasource, so the same pattern can be used
+  whether the datasource is a DB, an API, a file system, etc. That is why the project is
+  split into two packages – the goal is a single interface consumers use without needing to
+  understand the underlying mechanics.
+- Everything is type-safe and checkable at compile time – no strings or mappings involved,
+  so errors are caught early.
+- Implementation details are fully up to the entity itself, so consumers can write their own
+  entity implementing the interface, backed by Entity Framework, direct SQL, stored
+  procedures, etc.
+
 ### Entity mapping
 
 Models are plain POCOs mapped with [Dapper.Contrib](https://github.com/DapperLib/Dapper.Contrib)
@@ -93,8 +103,28 @@ var repository = new SqlRepository(() => new SqlConnection(connectionString));
 ### Defining an Entity
 
 `Entity<TModel, TFilter, TOptions>` (or the 4-generic overload with a separate update model)
-implements list/get/exists/add/update/upsert/delete against a `Table<T>`, and lets you
-customise filtering and joins by overriding `SelectQuery` and `Filter`:
+implements list/get/exists/add/update/upsert/delete against a `Table<T>`.
+
+For a quick start, a separate filter class is not necessary. As long as the model has
+`virtual` properties for the columns you want to filter on, the base `Entity.Filter`
+implementation maps them automatically, so the model itself can be used as `TFilter`:
+
+```csharp
+using Simpleverse.Repository.Db;
+using Simpleverse.Repository.Db.Entity;
+
+public class IdentityEntity : Entity<Identity, DbQueryOptions>
+{
+    public IdentityEntity(DbRepository repository)
+        : base(repository, new Table<Identity>("I"))
+    {
+    }
+}
+```
+
+A separate `TFilter` class with a `Filter` override is only needed when you want to
+change or expand filtering beyond the basic columns (e.g. custom joins or filters that
+don't map 1:1 to a model property):
 
 ```csharp
 using Simpleverse.Repository.Db;

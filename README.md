@@ -38,9 +38,10 @@ public class Identity
 }
 
 // 3. Define an entity and query it
-public class IdentityQueryFilter { public string Name { get; set; } }
-
-public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
+// A separate filter class isn't necessary for a quick start – the base Entity.Filter
+// maps "virtual" model properties automatically, so the model itself can be used as
+// the filter type.
+public class IdentityEntity : Entity<Identity, DbQueryOptions>
 {
     public IdentityEntity(DbRepository repository)
         : base(repository, new Table<Identity>("I")) { }
