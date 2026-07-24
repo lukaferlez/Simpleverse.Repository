@@ -31,5 +31,21 @@ namespace Simpleverse.Repository.Db.Test.QueryBuilder
 			$"WHERE [Guid] NOT IN ('{Value}','{Value}')",
 			Array.Empty<string>()
 		);
+
+		[Fact]
+		public void TestGuidNullable_In()
+			=> Test<Model>(
+				queryBuilder => queryBuilder.Where(x => x.GuidNullable, new List<Guid?>() { Value, Value }),
+				$"WHERE [GuidNullable] IN ('{Value}','{Value}')",
+				Array.Empty<string>()
+			);
+
+		[Fact]
+		public void TestGuidNullable_NotIn()
+			=> Test<Model>(
+				queryBuilder => queryBuilder.WhereNot(x => x.GuidNullable, new List<Guid?>() { Value, Value }),
+				$"WHERE [GuidNullable] NOT IN ('{Value}','{Value}')",
+				Array.Empty<string>()
+			);
 	}
 }
