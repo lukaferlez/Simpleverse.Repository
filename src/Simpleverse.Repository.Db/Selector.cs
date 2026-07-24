@@ -105,10 +105,19 @@ namespace Simpleverse.Repository.Db
 		{
 			if (values == null || !values.Any())
 				return this;
-			var valuesJoined = values.Join(',');
-			var tType = typeof(T);
-			if (tType.IsEnum)
-				valuesJoined = string.Join(',', values.Select(x => Enum.Format(tType, x, "d")));
+
+			var underlyingType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+			var nonNullValues = values.Where(x => x != null);
+
+			string valuesJoined;
+			if (underlyingType == typeof(Guid))
+				valuesJoined = string.Join(',', nonNullValues.Select(x => $"'{x}'"));
+			else if (underlyingType == typeof(DateTime))
+				valuesJoined = string.Join(',', nonNullValues.Select(x => $"'{Convert.ToDateTime(x):yyyy-MM-ddTHH:mm:ss.fff}'"));
+			else if (underlyingType.IsEnum)
+				valuesJoined = string.Join(',', nonNullValues.Select(x => Enum.Format(underlyingType, x, "d")));
+			else
+				valuesJoined = nonNullValues.Join(',');
 
 			return In(valuesJoined, not);
 		}
