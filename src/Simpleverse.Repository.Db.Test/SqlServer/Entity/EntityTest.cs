@@ -295,6 +295,54 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 				Assert.NotNull(fetchedIdentity);
 			}
 		}
+
+		[Fact]
+		public async Task ListAsync_WhenFilteredByNullableGuidList_ReturnsMatchingRecords()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arrange
+				connection.Open();
+				connection.Truncate<DataTypeNullable>();
+				var records = TestData.DataTypeNullableData(4).ToList();
+				connection.Insert(records);
+				var recordsWithGuid = records.Where(x => x.Guid.HasValue).ToList();
+				var guidFilter = recordsWithGuid.Select(x => x.Guid).ToList();
+				var entity = new DataTypeNullableEntity(_sqlRepository);
+
+				// act
+				var returned = (await entity.ListAsync(filter => filter.Guids = guidFilter)).ToList();
+
+				// assert
+				Assert.Equal(recordsWithGuid.Count, returned.Count);
+				Assert.All(returned, x => Assert.Contains(x.Guid, guidFilter));
+			}
+		}
+
+		[Fact]
+		public async Task ListAsync_WhenFilteredByNullableGuidListContainingNull_SkipsNullAndReturnsMatchingRecord()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arrange
+				connection.Open();
+				connection.Truncate<DataTypeNullable>();
+				var records = TestData.DataTypeNullableData(4).ToList();
+				connection.Insert(records);
+				var recordWithGuid = records.First(x => x.Guid.HasValue);
+				var guidFilter = new List<Guid?> { recordWithGuid.Guid, null };
+				var entity = new DataTypeNullableEntity(_sqlRepository);
+
+				// act
+				var returned = (await entity.ListAsync(filter => filter.Guids = guidFilter)).ToList();
+
+				// assert
+				Assert.Single(returned);
+				Assert.Equal(recordWithGuid.Guid, returned[0].Guid);
+			}
+		}
 	}
 
 	public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
@@ -360,6 +408,25 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 			changed.Remove(nameof(IdentityDateOfBirth.DateOfBirth));
 
 			return changed;
+		}
+	}
+
+	public class DataTypeNullableFilter
+	{
+		public virtual IEnumerable<Guid?> Guids { get; set; }
+	}
+
+	public class DataTypeNullableEntity : Entity<DataTypeNullable, DataTypeNullableFilter, DbQueryOptions>
+	{
+		public DataTypeNullableEntity(DbRepository repository)
+			: base(repository, new Table<DataTypeNullable>("DT"))
+		{
+		}
+
+		protected override void Filter(QueryBuilder<DataTypeNullable> builder, DataTypeNullableFilter filter)
+		{
+			builder.Where(x => x.Guid, filter.Guids);
+			base.Filter(builder, filter);
 		}
 	}
 }
