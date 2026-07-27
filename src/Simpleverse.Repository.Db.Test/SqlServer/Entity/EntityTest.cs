@@ -343,6 +343,17 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 				Assert.Equal(recordWithGuid.Guid, returned[0].Guid);
 			}
 		}
+
+		[Fact]
+		public void Constructor_WhenGivenTableNameString_CreatesEquivalentTableToTableConstructorOverload()
+		{
+			// arrange & act
+			var entityFromTable = new IdentityEntity(_sqlRepository);
+			var entityFromTableName = new IdentityEntityByTableName(_sqlRepository);
+
+			// assert
+			Assert.Equal(entityFromTable.TableName, entityFromTableName.TableName);
+		}
 	}
 
 	public class IdentityEntity : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
@@ -353,6 +364,8 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 		}
 
 		public IdentityEntity(SqlRepository sqlRepository) : base(sqlRepository, new Table<Identity>("I")) { }
+
+		public string TableName => Source.TableName;
 
 		protected override void SelectQuery(QueryBuilder<Identity> builder, IdentityQueryFilter filter, DbQueryOptions options)
 		{
@@ -368,6 +381,19 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Entity
 
 			base.SelectQuery(builder, filter, options);
 		}
+
+		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
+		{
+			builder.Where(x => x.Name, filter.Name);
+			base.Filter(builder, filter);
+		}
+	}
+
+	public class IdentityEntityByTableName : Entity<Identity, IdentityQueryFilter, DbQueryOptions>
+	{
+		public IdentityEntityByTableName(SqlRepository sqlRepository) : base(sqlRepository, "I") { }
+
+		public string TableName => Source.TableName;
 
 		protected override void Filter(QueryBuilder<Identity> builder, IdentityQueryFilter filter)
 		{

@@ -106,7 +106,19 @@ var repository = new SqlRepository(() => new SqlConnection(connectionString));
 implements list/get/exists/add/update/upsert/delete against a `Table<T>`.
 
 For a quick start, declaring a dedicated entity class is not necessary – the simplest form
-is to instantiate `Entity<T>` directly:
+is to instantiate `Entity<T>` directly, passing the table name as a plain string:
+
+```csharp
+using Simpleverse.Repository.Db;
+using Simpleverse.Repository.Db.Entity;
+
+var entity = new Entity<Identity>(repository, "I");
+```
+
+Internally this constructs a `Table<Identity>` for you. The more complicated
+`(repository, Table<TModel>)` overload is still available and useful for advanced cases –
+e.g. when you need to control schema qualification, quoting, or reuse a `Table<T>` instance
+that already exists elsewhere:
 
 ```csharp
 using Simpleverse.Repository.Db;

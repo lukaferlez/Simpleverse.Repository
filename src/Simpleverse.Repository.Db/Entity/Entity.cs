@@ -32,6 +32,11 @@ namespace Simpleverse.Repository.Db.Entity
 			Source = source;
 		}
 
+		public Entity(DbRepository repository, string tableName)
+			: this(repository, new Table<TModel>(tableName))
+		{
+		}
+
 		#region IQuery
 
 		#region Get
@@ -670,6 +675,11 @@ namespace Simpleverse.Repository.Db.Entity
 			: base(repository, source)
 		{
 		}
+
+		public Entity(DbRepository repository, string tableName)
+			: base(repository, tableName)
+		{
+		}
 	}
 
 	public class Entity<T, TOptions>
@@ -681,6 +691,11 @@ namespace Simpleverse.Repository.Db.Entity
 			: base(repository, source)
 		{
 		}
+
+		public Entity(DbRepository repository, string tableName)
+			: base(repository, tableName)
+		{
+		}
 	}
 
 	public class Entity<T>
@@ -689,6 +704,11 @@ namespace Simpleverse.Repository.Db.Entity
 	{
 		public Entity(DbRepository repository, Table<T> source)
 			: base(repository, source)
+		{
+		}
+
+		public Entity(DbRepository repository, string tableName)
+			: base(repository, tableName)
 		{
 		}
 	}
