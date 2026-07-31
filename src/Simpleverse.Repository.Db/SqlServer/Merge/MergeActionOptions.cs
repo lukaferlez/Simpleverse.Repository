@@ -22,12 +22,18 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			return this;
 		}
 
-		public MergeActionOptions<T> Update()
+		/// <param name="checkConditionOnColumns">
+		/// When true the update only runs for rows whose columns actually differ. Pass false to update every
+		/// matched row, which also makes them show up in the OUTPUT clause and therefore in the output mapping.
+		/// </param>
+		public MergeActionOptions<T> Update(bool checkConditionOnColumns = true)
 		{
 			var typeMeta = TypeMeta.Get<T>();
 			Action = MergeAction.Update;
 			ColumnsByPropertyInfo(typeMeta.PropertiesExceptKeyAndComputed);
-			CheckConditionOnColumns();
+
+			if (checkConditionOnColumns)
+				CheckConditionOnColumns();
 
 			return this;
 		}
