@@ -34,6 +34,11 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			);
 		}
 
+		/// <param name="outputOptions">
+		/// Configures the output map and, via <see cref="OutputOptions{T}.MapChangedOnly"/>, whether the
+		/// matched entity is only updated (and therefore only mapped) if its columns actually differ. Set
+		/// MapChangedOnly to false to update and map the entity even if unchanged.
+		/// </param>
 		public async static Task<int> UpsertAsync<T>(
 			this IDbConnection connection,
 			T entitiesToUpsert,
@@ -90,7 +95,6 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		/// <param name="entitiesToUpsert">Entity to be updated</param>
 		/// <param name="transaction">The transaction to run under, null (the default) if none</param>
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
-		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> UpsertBulkAsync<T>(
 			this IDbConnection connection,
 			IEnumerable<T> entitiesToUpsert,
