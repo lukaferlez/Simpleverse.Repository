@@ -16,11 +16,31 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		public async static Task<int> UpsertAsync<T>(
 			this IDbConnection connection,
 			T entitiesToUpsert,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			bool checkConditionOnColumns = true,
+			CancellationToken cancellationToken = default
+		)
+			where T : class
+		{
+			return await connection.UpsertAsync(
+				entitiesToUpsert,
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				key: key,
+				outputOptions: options => options.Map = outputMap,
+				cancellationToken: cancellationToken
+			);
+		}
+
+		public async static Task<int> UpsertAsync<T>(
+			this IDbConnection connection,
+			T entitiesToUpsert,
+			IDbTransaction transaction = null,
+			int? commandTimeout = null,
+			Action<MergeKeyOptions> key = null,
+			Action<OutputOptions<T>> outputOptions = null,
 			CancellationToken cancellationToken = default
 		)
 			where T : class
@@ -30,8 +50,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				transaction: transaction,
 				commandTimeout: commandTimeout,
 				key: key,
-				outputMap: outputMap,
-				checkConditionOnColumns: checkConditionOnColumns,
+				outputOptions: outputOptions,
 				cancellationToken: cancellationToken
 			);
 		}
@@ -71,9 +90,33 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		/// <param name="entitiesToUpsert">Entity to be updated</param>
 		/// <param name="transaction">The transaction to run under, null (the default) if none</param>
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
-		/// <param name="checkConditionOnColumns">
-		/// When true matched entities are only updated if their columns actually differ. Pass false to update
-		/// every matched entity, which is what makes unchanged entities available to <paramref name="outputMap"/>.
+		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
+		public async static Task<int> UpsertBulkAsync<T>(
+			this IDbConnection connection,
+			IEnumerable<T> entitiesToUpsert,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
+			IDbTransaction transaction = null,
+			int? commandTimeout = null,
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			Action<MergeKeyOptions> key = null,
+			CancellationToken cancellationToken = default
+		) where T : class
+		{
+			return await connection.UpsertBulkAsync(
+				entitiesToUpsert,
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				sqlBulkCopy: sqlBulkCopy,
+				key: key,
+				outputOptions: options => options.Map = outputMap,
+				cancellationToken: cancellationToken
+			);
+		}
+
+		/// <param name="outputOptions">
+		/// Configures the output map and, via <see cref="OutputOptions{T}.MapChangedOnly"/>, whether matched
+		/// entities are only updated (and therefore only mapped) if their columns actually differ. Set
+		/// MapChangedOnly to false to update and map every matched entity, including unchanged ones.
 		/// </param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> UpsertBulkAsync<T>(
@@ -83,20 +126,22 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
-			bool checkConditionOnColumns = true,
+			Action<OutputOptions<T>> outputOptions = null,
 			CancellationToken cancellationToken = default
 		) where T : class
 		{
+			var options = new OutputOptions<T>();
+			outputOptions?.Invoke(options);
+
 			return await connection.MergeBulkAsync(
 				entitiesToUpsert,
 				transaction,
 				commandTimeout,
 				sqlBulkCopy: sqlBulkCopy,
 				key: key,
-				matched: options => options.Update(checkConditionOnColumns: checkConditionOnColumns),
-				notMatchedByTarget: options => options.Insert(),
-				outputMap: outputMap,
+				matched: matchedOptions => matchedOptions.Update(checkConditionOnColumns: options.MapChangedOnly),
+				notMatchedByTarget: notMatchedOptions => notMatchedOptions.Insert(),
+				outputMap: options.Map,
 				cancellationToken: cancellationToken
 			);
 		}

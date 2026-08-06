@@ -330,8 +330,11 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				// act
 				var affected = connection.UpsertBulkAsync(
 					existing,
-					outputMap: OutputMapper.Map,
-					checkConditionOnColumns: false
+					outputOptions: options =>
+					{
+						options.Map = OutputMapper.Map;
+						options.MapChangedOnly = false;
+					}
 				).Result;
 
 				// assert
@@ -362,8 +365,11 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 				var affected = connection.UpsertBulkAsync(
 					records,
 					key: options => options.ColumnsByName(nameof(Identity.Name)),
-					outputMap: OutputMapper.Map,
-					checkConditionOnColumns: false
+					outputOptions: options =>
+					{
+						options.Map = OutputMapper.Map;
+						options.MapChangedOnly = false;
+					}
 				).Result;
 
 				// assert
