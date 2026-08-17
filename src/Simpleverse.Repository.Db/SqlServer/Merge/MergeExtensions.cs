@@ -16,10 +16,36 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		public async static Task<int> UpsertAsync<T>(
 			this IDbConnection connection,
 			T entitiesToUpsert,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
 			IDbTransaction transaction = null,
 			int? commandTimeout = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			CancellationToken cancellationToken = default
+		)
+			where T : class
+		{
+			return await connection.UpsertAsync(
+				entitiesToUpsert,
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				key: key,
+				outputOptions: options => options.Map = outputMap,
+				cancellationToken: cancellationToken
+			);
+		}
+
+		/// <param name="outputOptions">
+		/// Configures the output map and, via <see cref="OutputOptions{T}.MapChangedOnly"/>, whether the
+		/// matched entity is only updated (and therefore only mapped) if its columns actually differ. Set
+		/// MapChangedOnly to false to update and map the entity even if unchanged.
+		/// </param>
+		public async static Task<int> UpsertAsync<T>(
+			this IDbConnection connection,
+			T entitiesToUpsert,
+			IDbTransaction transaction = null,
+			int? commandTimeout = null,
+			Action<MergeKeyOptions> key = null,
+			Action<OutputOptions<T>> outputOptions = null,
 			CancellationToken cancellationToken = default
 		)
 			where T : class
@@ -29,7 +55,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				transaction: transaction,
 				commandTimeout: commandTimeout,
 				key: key,
-				outputMap: outputMap,
+				outputOptions: outputOptions,
 				cancellationToken: cancellationToken
 			);
 		}
@@ -69,6 +95,33 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 		/// <param name="entitiesToUpsert">Entity to be updated</param>
 		/// <param name="transaction">The transaction to run under, null (the default) if none</param>
 		/// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+		public async static Task<int> UpsertBulkAsync<T>(
+			this IDbConnection connection,
+			IEnumerable<T> entitiesToUpsert,
+			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap,
+			IDbTransaction transaction = null,
+			int? commandTimeout = null,
+			Action<SqlBulkCopy> sqlBulkCopy = null,
+			Action<MergeKeyOptions> key = null,
+			CancellationToken cancellationToken = default
+		) where T : class
+		{
+			return await connection.UpsertBulkAsync(
+				entitiesToUpsert,
+				transaction: transaction,
+				commandTimeout: commandTimeout,
+				sqlBulkCopy: sqlBulkCopy,
+				key: key,
+				outputOptions: options => options.Map = outputMap,
+				cancellationToken: cancellationToken
+			);
+		}
+
+		/// <param name="outputOptions">
+		/// Configures the output map and, via <see cref="OutputOptions{T}.MapChangedOnly"/>, whether matched
+		/// entities are only updated (and therefore only mapped) if their columns actually differ. Set
+		/// MapChangedOnly to false to update and map every matched entity, including unchanged ones.
+		/// </param>
 		/// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
 		public async static Task<int> UpsertBulkAsync<T>(
 			this IDbConnection connection,
@@ -77,19 +130,22 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			int? commandTimeout = null,
 			Action<SqlBulkCopy> sqlBulkCopy = null,
 			Action<MergeKeyOptions> key = null,
-			Action<IEnumerable<T>, IEnumerable<T>, IEnumerable<PropertyInfo>, IEnumerable<PropertyInfo>> outputMap = null,
+			Action<OutputOptions<T>> outputOptions = null,
 			CancellationToken cancellationToken = default
 		) where T : class
 		{
+			var options = new OutputOptions<T>();
+			outputOptions?.Invoke(options);
+
 			return await connection.MergeBulkAsync(
 				entitiesToUpsert,
 				transaction,
 				commandTimeout,
 				sqlBulkCopy: sqlBulkCopy,
 				key: key,
-				matched: options => options.Update(),
-				notMatchedByTarget: options => options.Insert(),
-				outputMap: outputMap,
+				matched: matchedOptions => matchedOptions.Update(checkConditionOnColumns: options.MapChangedOnly),
+				notMatchedByTarget: notMatchedOptions => notMatchedOptions.Insert(),
+				outputMap: options.Map,
 				cancellationToken: cancellationToken
 			);
 		}
@@ -129,6 +185,9 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 			if (mapGeneratedValues && !typeMeta.PropertiesKeyAndExplicit.Any())
 				throw new NotSupportedException("Output mapping inserted values is not supported without either a key or explicitkey");
 
+			var onColumns = OnColumns(typeMeta, keyAction: key);
+			var onProperties = OnProperties(typeMeta, onColumns);
+
 			return await connection.ExecuteAsync(
 				entitiesToMerge,
 				typeMeta.PropertiesExceptComputed,
@@ -137,7 +196,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 					var sb = new StringBuilder($@"
 						MERGE INTO {typeMeta.TableName} AS Target
 						USING {source} AS Source
-						ON ({OnColumns(typeMeta, keyAction: key).ColumnListEquals(" AND ")})"
+						ON ({onColumns.ColumnListEquals(" AND ")})"
 					);
 					sb.AppendLine();
 
@@ -183,7 +242,7 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 							outputMap(
 								entitiesToMerge,
 								values,
-								index == 0 ? typeMeta.PropertiesExceptKeyAndComputed : typeMeta.PropertiesKeyAndExplicit,
+								index == 0 ? typeMeta.PropertiesExceptKeyAndComputed : onProperties,
 								typeMeta.Properties
 							);
 						},
@@ -207,6 +266,27 @@ namespace Simpleverse.Repository.Db.SqlServer.Merge
 				keyAction(options);
 
 			return options.Columns;
+		}
+
+		/// <summary>
+		/// Resolves the columns the merge matches on back to properties, so that rows returned for
+		/// matched entities can be mapped onto the entities they originated from. Matching on the merge
+		/// columns instead of the key is what allows generated keys to be mapped onto updated entities,
+		/// which do not necessarily carry the key when merging on other columns.
+		/// </summary>
+		public static IEnumerable<PropertyInfo> OnProperties(TypeMeta typeMeta, IEnumerable<string> onColumns)
+		{
+			if (onColumns == null)
+				return typeMeta.PropertiesKeyAndExplicit;
+
+			var properties = typeMeta.Properties
+				.Where(x => onColumns.Contains(x.Name, StringComparer.OrdinalIgnoreCase))
+				.ToList();
+
+			if (properties.Count != onColumns.Count())
+				return typeMeta.PropertiesKeyAndExplicit;
+
+			return properties;
 		}
 
 		public static void Format<T>(this MergeMatchResult result, TypeMeta typeMeta, Action<MergeActionOptions<T>> optionsAction, StringBuilder sb)

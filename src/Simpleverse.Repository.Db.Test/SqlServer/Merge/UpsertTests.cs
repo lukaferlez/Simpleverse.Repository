@@ -234,6 +234,181 @@ namespace Simpleverse.Repository.Db.Test.SqlServer.Merge
 		}
 
 		[Fact]
+		public void UpsertBulkAsyncMapsInsertedAndUpdatedTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Computed>();
+
+				var existing = TestData.ComputedData(5).ToList();
+				connection.InsertBulkAsync(existing, outputMap: OutputMapper.MapOnce).Wait();
+
+				foreach (var record in existing)
+				{
+					record.Name = record.Name + "-updated";
+					record.Value = 0;
+					record.ValueDate = default;
+					record.ValueComputed = 0;
+				}
+
+				var added = TestData.ComputedData(3).ToList();
+				foreach (var record in added)
+				{
+					record.Id = 0;
+					record.Name = "new-" + record.Name;
+				}
+
+				var records = existing.Concat(added).ToList();
+
+				// act
+				var affected = connection.UpsertBulkAsync(records, outputMap: OutputMapper.Map).Result;
+
+				// assert
+				Assert.Equal(8, affected);
+				Assert.All(records, x => Assert.NotEqual(0, x.Id));
+				Assert.All(records, x => Assert.Equal(5, x.Value));
+				Assert.All(records, x => Assert.Equal(10, x.ValueComputed));
+				Assert.All(records, x => Assert.Equal(new DateTime(2022, 05, 02), x.ValueDate));
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncSkipsUnchangedMatchedRecordsByDefaultTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Computed>();
+
+				var existing = TestData.ComputedData(5).ToList();
+				connection.InsertBulkAsync(existing, outputMap: OutputMapper.MapOnce).Wait();
+
+				// nothing changed, only the generated values are cleared locally
+				foreach (var record in existing)
+				{
+					record.Value = 0;
+					record.ValueDate = default;
+					record.ValueComputed = 0;
+				}
+
+				// act
+				var affected = connection.UpsertBulkAsync(existing, outputMap: OutputMapper.Map).Result;
+
+				// assert
+				// by default unchanged entities are not written, so they produce no output row to map from
+				Assert.Equal(0, affected);
+				Assert.All(existing, x => Assert.Equal(0, x.ValueComputed));
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncWithoutConditionCheckMapsUnchangedMatchedRecordsTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Computed>();
+
+				var existing = TestData.ComputedData(5).ToList();
+				connection.InsertBulkAsync(existing, outputMap: OutputMapper.MapOnce).Wait();
+
+				// nothing changed, only the generated values are cleared locally
+				foreach (var record in existing)
+				{
+					record.Value = 0;
+					record.ValueDate = default;
+					record.ValueComputed = 0;
+				}
+
+				// act
+				var affected = connection.UpsertBulkAsync(
+					existing,
+					outputOptions: options =>
+					{
+						options.Map = OutputMapper.Map;
+						options.MapChangedOnly = false;
+					}
+				).Result;
+
+				// assert
+				Assert.Equal(5, affected);
+				Assert.All(existing, x => Assert.Equal(5, x.Value));
+				Assert.All(existing, x => Assert.Equal(10, x.ValueComputed));
+				Assert.All(existing, x => Assert.Equal(new DateTime(2022, 05, 02), x.ValueDate));
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncWithoutConditionCheckMapsUnchangedMatchedRecordsOnCustomKeyTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+
+				var existing = TestData.IdentityWithoutIdData(3).ToList();
+				connection.InsertBulkAsync(existing, outputMap: OutputMapper.MapOnce).Wait();
+
+				// caller only knows the business key and changes nothing
+				var records = TestData.IdentityWithoutIdData(3).ToList();
+
+				// act
+				var affected = connection.UpsertBulkAsync(
+					records,
+					key: options => options.ColumnsByName(nameof(Identity.Name)),
+					outputOptions: options =>
+					{
+						options.Map = OutputMapper.Map;
+						options.MapChangedOnly = false;
+					}
+				).Result;
+
+				// assert
+				Assert.Equal(3, affected);
+				Assert.All(records, x => Assert.NotEqual(0, x.Id));
+			}
+		}
+
+		[Fact]
+		public void UpsertBulkAsyncMapsUpdatedRecordsMatchedOnCustomKeyTest()
+		{
+			using (var profiler = Profile())
+			using (var connection = _fixture.GetProfiledConnection())
+			{
+				// arange
+				connection.Open();
+				connection.Truncate<Identity>();
+
+				var existing = TestData.IdentityWithoutIdData(3).ToList();
+				connection.InsertBulkAsync(existing, outputMap: OutputMapper.MapOnce).Wait();
+
+				// caller only knows the business key, not the identity
+				var records = TestData.IdentityWithoutIdData(5).ToList();
+				foreach (var record in records)
+					record.From = "changed";
+
+				// act
+				connection.UpsertBulkAsync(
+					records,
+					key: options => options.ColumnsByName(nameof(Identity.Name)),
+					outputMap: OutputMapper.Map
+				).Wait();
+
+				// assert
+				Assert.All(records, x => Assert.NotEqual(0, x.Id));
+			}
+		}
+
+		[Fact]
 		public void UpsertBulkAsyncWriteAttributeTest()
 		{
 			using (var profiler = Profile())
